@@ -1,3 +1,11 @@
+---
+license: mit
+title: Arpeggiator
+sdk: static
+emoji: 🦀
+colorFrom: indigo
+colorTo: pink
+---
 # Hand Gesture Arpeggiator
 
 Hand-controlled arpeggiator, drum machine, and audio reactive visualizer. Raise your hands to raise the roof!
