@@ -3,8 +3,9 @@ license: mit
 title: Arpeggiator
 sdk: static
 emoji: 🦀
-colorFrom: indigo
+colorFrom: purple
 colorTo: pink
+short_description: Hand-controlled arpeggiator, drum machine, and visualizer
 ---
 # Hand Gesture Arpeggiator
 
