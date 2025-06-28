@@ -3,25 +3,25 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Arpeggiator</title>
+        <title>Gesture DJ Controller</title>
         <link rel="stylesheet" href="styles.css">
 
         <!-- Primary Meta Tags -->
-        <meta name="title" content="Arpeggiator">
-        <meta name="description" content="hand-controlled arp, drum machine, real-time visualizer">
+        <meta name="title" content="Gesture DJ Controller">
+        <meta name="description" content="Hand-controlled DJ interface with gesture controls and playlist management">
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website">
         <meta property="og:url" content="https://collidingscopes.github.io/arpeggiator/">
-        <meta property="og:title" content="Arpeggiator">
-        <meta property="og:description" content="hand-controlled arp, drum machine, real-time visualizer">
+        <meta property="og:title" content="Gesture DJ Controller">
+        <meta property="og:description" content="Hand-controlled DJ interface with gesture controls and playlist management">
         <meta property="og:image" content="https://raw.githubusercontent.com/collidingScopes/arpeggiator/main/assets/siteOGImage.webp">
 
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
         <meta property="twitter:url" content="https://collidingscopes.github.io/arpeggiator/">
-        <meta property="twitter:title" content="Arpeggiator">
-        <meta property="twitter:description" content="hand-controlled arp, drum machine, real-time visualizer">
+        <meta property="twitter:title" content="Gesture DJ Controller">
+        <meta property="twitter:description" content="Hand-controlled DJ interface with gesture controls and playlist management">
         <meta property="twitter:image" content="https://raw.githubusercontent.com/collidingScopes/arpeggiator/main/assets/siteOGImage.webp">
 
         <script defer src="https://cloud.umami.is/script.js" data-website-id="eb59c81c-27cb-4e1d-9e8c-bfbe70c48cd9"></script>
@@ -37,15 +37,70 @@
     <body style="width: 100%; height: 100%; overflow: hidden; margin: 0;">
         <div id="renderDiv" style="width: 100%; height: 100%; margin: 0;">
 
-            <span id="info-text">raise your hands to raise the roof</span>
+            <!-- Sidebar Toggle Button -->
+            <button id="sidebar-toggle" class="sidebar-toggle">
+                <span>🎵</span>
+            </button>
+
+            <!-- Sidebar Container -->
+            <div id="sidebar" class="sidebar">
+                <div class="sidebar-header">
+                    <h3>DJ Controller</h3>
+                    <button id="sidebar-close" class="sidebar-close">×</button>
+                </div>
+
+                <!-- Current Track Display -->
+                <div class="current-track-section">
+                    <h4>Now Playing</h4>
+                    <div id="current-track-info" class="current-track-info">
+                        <div class="track-title">No track loaded</div>
+                        <div class="track-artist">Select a track to begin</div>
+                    </div>
+                </div>
+
+                <!-- Track Import Section -->
+                <div class="import-section">
+                    <h4>Import Tracks</h4>
+                    <input type="file" id="file-input" accept="audio/*" multiple style="display: none;">
+                    <button id="import-files-btn" class="import-btn">📁 Import Local Files</button>
+                    <div class="url-import">
+                        <input type="url" id="url-input" placeholder="Paste audio URL..." class="url-input">
+                        <button id="import-url-btn" class="import-btn">🔗 Add URL</button>
+                    </div>
+                </div>
+
+                <!-- Playlist Section -->
+                <div class="playlist-section">
+                    <h4>Playlist</h4>
+                    <div id="playlist-container" class="playlist-container">
+                        <div class="empty-playlist">No tracks in playlist</div>
+                    </div>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="playback-controls">
+                    <button id="prev-btn" class="control-btn">⏮️</button>
+                    <button id="play-pause-btn" class="control-btn play-pause">▶️</button>
+                    <button id="next-btn" class="control-btn">⏭️</button>
+                </div>
+            </div>
+
+            <!-- Main Info Text -->
+            <span id="info-text">use gestures to control playback • click 🎵 for playlist</span>
+            
+            <!-- Social Links -->
             <div id="social-links" class="text-box">
                 <a href="https://www.x.com/measure_plan/" target="_blank">> Twitter</a><br>
                 <a href="https://www.instagram.com/stereo.drift/" target="_blank">> Instagram</a><br>
                 <a href="https://youtube.com/@funwithcomputervision" target="_blank">> Youtube</a>
             </div>
+            
+            <!-- Coffee Link -->
             <div id="coffee-link" class="text-box">
                 <a href="https://buymeacoffee.com/stereodrift" target="_blank">Buy me a coffee 💛</a>
             </div>
+            
+            <!-- Logo Container -->
             <div id="logo-container" class="text-box">
                 <span id="logo">🪬</span><br>
                 <a href="https://funwithcomputervision.com/" target="_blank">code & tutorials here</a>
