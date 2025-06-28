@@ -195,9 +195,16 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands with the working CDN URL
-            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
-            console.log('✅ Game: MediaPipe Hands loaded');
+            // Import MediaPipe Hands module
+            const mediaPipeModule = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
+            console.log('✅ Game: MediaPipe module loaded');
+
+            // Get the Hands constructor - try both named export and default export
+            const Hands = mediaPipeModule.Hands || mediaPipeModule.default?.Hands || mediaPipeModule.default;
+            
+            if (!Hands) {
+                throw new Error('Hands constructor not found in MediaPipe module');
+            }
 
             // Initialize Hands with matching locateFile path
             this.hands = new Hands({
