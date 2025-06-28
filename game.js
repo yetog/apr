@@ -102,34 +102,36 @@ export class Game {
                 throw new Error('getUserMedia is not supported in this browser');
             }
 
-            // Create video element
+            // Create video element (full screen)
             this.videoElement = document.createElement('video');
-            this.videoElement.style.position = 'absolute';
+            this.videoElement.style.position = 'fixed';
             this.videoElement.style.top = '0';
             this.videoElement.style.left = '0';
-            this.videoElement.style.width = '320px';
-            this.videoElement.style.height = '240px';
-            this.videoElement.style.zIndex = '1000';
-            this.videoElement.style.opacity = '0.3'; // Make it semi-transparent for debugging
+            this.videoElement.style.width = '100vw';
+            this.videoElement.style.height = '100vh';
+            this.videoElement.style.zIndex = '998';
+            this.videoElement.style.opacity = '0.3'; // Semi-transparent for overlay effect
+            this.videoElement.style.objectFit = 'cover'; // Maintain aspect ratio
             this.videoElement.autoplay = true;
             this.videoElement.playsInline = true;
             
-            // Add to DOM for debugging (you can remove this later)
+            // Add to DOM
             document.body.appendChild(this.videoElement);
 
-            // Create canvas for MediaPipe
+            // Create canvas for MediaPipe (full screen)
             this.canvasElement = document.createElement('canvas');
-            this.canvasElement.style.position = 'absolute';
+            this.canvasElement.style.position = 'fixed';
             this.canvasElement.style.top = '0';
-            this.canvasElement.style.left = '320px';
-            this.canvasElement.style.width = '320px';
-            this.canvasElement.style.height = '240px';
-            this.canvasElement.style.zIndex = '1001';
-            this.canvasElement.width = 320;
-            this.canvasElement.height = 240;
+            this.canvasElement.style.left = '0';
+            this.canvasElement.style.width = '100vw';
+            this.canvasElement.style.height = '100vh';
+            this.canvasElement.style.zIndex = '999';
+            this.canvasElement.style.pointerEvents = 'none'; // Allow clicks to pass through
+            this.canvasElement.width = window.innerWidth;
+            this.canvasElement.height = window.innerHeight;
             this.canvasCtx = this.canvasElement.getContext('2d');
             
-            // Add canvas to DOM for debugging
+            // Add canvas to DOM
             document.body.appendChild(this.canvasElement);
 
             console.log('📹 Game: Requesting camera access...');
@@ -137,8 +139,8 @@ export class Game {
             // Request camera access
             const constraints = {
                 video: {
-                    width: { ideal: 640 },
-                    height: { ideal: 480 },
+                    width: { ideal: window.innerWidth },
+                    height: { ideal: window.innerHeight },
                     facingMode: 'user'
                 }
             };
@@ -190,8 +192,8 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands with stable CDN URLs
-            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js');
+            // Import MediaPipe Hands with updated stable CDN URLs
+            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.9.2009020404/hands.js');
             const { Camera } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675029046/camera_utils.js');
             
             console.log('✅ Game: MediaPipe modules loaded');
@@ -199,7 +201,7 @@ export class Game {
             // Initialize Hands
             this.hands = new Hands({
                 locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.9.2009020404/${file}`;
                 }
             });
 
@@ -218,15 +220,15 @@ export class Game {
 
             console.log('✅ Game: MediaPipe Hands configured');
 
-            // Initialize camera for MediaPipe
+            // Initialize camera for MediaPipe with full screen resolution
             const camera = new Camera(this.videoElement, {
                 onFrame: async () => {
                     if (this.hands && this.videoElement.readyState >= 2) {
                         await this.hands.send({ image: this.videoElement });
                     }
                 },
-                width: 640,
-                height: 480
+                width: window.innerWidth,
+                height: window.innerHeight
             });
 
             await camera.start();
@@ -243,7 +245,7 @@ export class Game {
         this.canvasCtx.save();
         this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
         
-        // Draw the video frame
+        // Draw the video frame (scaled to canvas size)
         this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height);
 
         if (results.multiHandLandmarks && results.multiHandedness) {
@@ -276,7 +278,7 @@ export class Game {
         ];
 
         this.canvasCtx.strokeStyle = '#00FF00';
-        this.canvasCtx.lineWidth = 2;
+        this.canvasCtx.lineWidth = 3; // Thicker lines for full screen
         
         connections.forEach(([start, end]) => {
             const startPoint = landmarks[start];
@@ -295,7 +297,7 @@ export class Game {
             this.canvasCtx.arc(
                 landmark.x * this.canvasElement.width,
                 landmark.y * this.canvasElement.height,
-                3,
+                5, // Larger points for full screen
                 0,
                 2 * Math.PI
             );
@@ -384,14 +386,6 @@ export class Game {
         // Keyboard shortcuts for debugging
         document.addEventListener('keydown', (event) => {
             switch(event.code) {
-                case 'KeyC':
-                    console.log('📹 Camera status:', {
-                        isCameraActive: this.isCameraActive,
-                        videoElement: !!this.videoElement,
-                        stream: !!this.cameraStream,
-                        hands: !!this.hands
-                    });
-                    break;
                 case 'KeyG':
                     console.log('🤖 Gesture state:', this.gestureState);
                     break;
@@ -410,13 +404,19 @@ export class Game {
         });
         
         console.log('✅ Game: Event listeners setup complete');
-        console.log('🔧 Debug keys: C (camera status), G (gesture state), V (toggle video visibility)');
+        console.log('🔧 Debug keys: G (gesture state), V (toggle video visibility)');
     }
 
     onWindowResize() {
         this.camera.aspect = window.innerWidth / window.innerHeight;
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        
+        // Update canvas size
+        if (this.canvasElement) {
+            this.canvasElement.width = window.innerWidth;
+            this.canvasElement.height = window.innerHeight;
+        }
         
         if (this.waveformVisualizer) {
             this.waveformVisualizer.updatePosition(window.innerWidth, window.innerHeight);
