@@ -1,0 +1,24 @@
+{
+  "name": "gesture-dj-controller",
+  "version": "1.0.0",
+  "description": "Hand-controlled DJ interface with gesture controls and playlist management",
+  "main": "main.js",
+  "type": "module",
+  "scripts": {
+    "dev": "python -m http.server 8000",
+    "start": "python -m http.server 8000"
+  },
+  "keywords": [
+    "dj",
+    "gesture-control",
+    "mediapipe",
+    "tonejs",
+    "threejs",
+    "music",
+    "hand-tracking"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {},
+  "devDependencies": {}
+}
