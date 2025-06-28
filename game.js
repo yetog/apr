@@ -192,9 +192,9 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands and Camera Utils with matching stable 0.4.x CDN URLs
+            // Import MediaPipe Hands and Camera Utils with confirmed working CDN URLs
             const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
-            const { Camera } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1646424915/camera_utils.js');
+            const { Camera } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1627447220/camera_utils.js');
             
             console.log('✅ Game: MediaPipe modules loaded');
 
