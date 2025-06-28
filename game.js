@@ -195,11 +195,14 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands class directly as a named export
-            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
-            console.log('✅ Game: MediaPipe Hands class loaded');
+            // Check if Hands is available globally (loaded via script tag)
+            if (typeof Hands === 'undefined') {
+                throw new Error('Hands constructor not found. MediaPipe script may not have loaded.');
+            }
 
-            // Initialize Hands with matching locateFile path
+            console.log('✅ Game: MediaPipe Hands class found globally');
+
+            // Initialize Hands using the global constructor
             this.hands = new Hands({
                 locateFile: (file) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
