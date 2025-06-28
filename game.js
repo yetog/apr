@@ -21,6 +21,7 @@ export class Game {
         this.canvasCtx = null;
         this.cameraStream = null;
         this.isCameraActive = false;
+        this.mediaPipeCamera = null;
         
         // Gesture state
         this.gestureState = {
@@ -29,7 +30,8 @@ export class Game {
             isPlayPauseGesture: false,
             isNextGesture: false,
             isPrevGesture: false,
-            volumeLevel: 0.7
+            volumeLevel: 0.7,
+            lastGestureTime: 0
         };
         
         // Animation
@@ -60,7 +62,7 @@ export class Game {
         
         // Scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0xffffff);
+        this.scene.background = new THREE.Color(0x000000);
 
         // Camera
         this.camera = new THREE.PerspectiveCamera(
@@ -110,10 +112,11 @@ export class Game {
             this.videoElement.style.width = '100vw';
             this.videoElement.style.height = '100vh';
             this.videoElement.style.zIndex = '998';
-            this.videoElement.style.opacity = '0.3'; // Semi-transparent for overlay effect
+            this.videoElement.style.opacity = '0.4'; // Semi-transparent for overlay effect
             this.videoElement.style.objectFit = 'cover'; // Maintain aspect ratio
             this.videoElement.autoplay = true;
             this.videoElement.playsInline = true;
+            this.videoElement.muted = true; // Prevent audio feedback
             
             // Add to DOM
             document.body.appendChild(this.videoElement);
@@ -139,8 +142,8 @@ export class Game {
             // Request camera access
             const constraints = {
                 video: {
-                    width: { ideal: window.innerWidth },
-                    height: { ideal: window.innerHeight },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
                     facingMode: 'user'
                 }
             };
@@ -192,11 +195,9 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands and Camera Utils with confirmed working CDN URLs
+            // Import MediaPipe Hands with the working CDN URL
             const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.js');
-            const { Camera } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1627447220/camera_utils.js');
-            
-            console.log('✅ Game: MediaPipe modules loaded');
+            console.log('✅ Game: MediaPipe Hands loaded');
 
             // Initialize Hands with matching locateFile path
             this.hands = new Hands({
@@ -220,19 +221,8 @@ export class Game {
 
             console.log('✅ Game: MediaPipe Hands configured');
 
-            // Initialize camera for MediaPipe with full screen resolution
-            const camera = new Camera(this.videoElement, {
-                onFrame: async () => {
-                    if (this.hands && this.videoElement.readyState >= 2) {
-                        await this.hands.send({ image: this.videoElement });
-                    }
-                },
-                width: window.innerWidth,
-                height: window.innerHeight
-            });
-
-            await camera.start();
-            console.log('✅ Game: MediaPipe camera started');
+            // Start processing video frames manually (without camera_utils)
+            this.startVideoProcessing();
             
         } catch (error) {
             console.error('❌ Game: MediaPipe setup failed:', error);
@@ -240,13 +230,30 @@ export class Game {
         }
     }
 
+    startVideoProcessing() {
+        console.log('🎥 Game: Starting video processing...');
+        
+        const processFrame = async () => {
+            if (this.hands && this.videoElement && this.videoElement.readyState >= 2) {
+                try {
+                    await this.hands.send({ image: this.videoElement });
+                } catch (error) {
+                    console.error('Error processing frame:', error);
+                }
+            }
+            
+            // Continue processing at ~30fps
+            setTimeout(processFrame, 33);
+        };
+        
+        processFrame();
+        console.log('✅ Game: Video processing started');
+    }
+
     onHandsResults(results) {
         // Clear canvas
         this.canvasCtx.save();
         this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
-        
-        // Draw the video frame (scaled to canvas size)
-        this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height);
 
         if (results.multiHandLandmarks && results.multiHandedness) {
             console.log(`🤖 Game: Detected ${results.multiHandLandmarks.length} hand(s)`);
@@ -278,7 +285,7 @@ export class Game {
         ];
 
         this.canvasCtx.strokeStyle = '#00FF00';
-        this.canvasCtx.lineWidth = 3; // Thicker lines for full screen
+        this.canvasCtx.lineWidth = 4; // Thicker lines for visibility
         
         connections.forEach(([start, end]) => {
             const startPoint = landmarks[start];
@@ -297,7 +304,7 @@ export class Game {
             this.canvasCtx.arc(
                 landmark.x * this.canvasElement.width,
                 landmark.y * this.canvasElement.height,
-                5, // Larger points for full screen
+                6, // Larger points for visibility
                 0,
                 2 * Math.PI
             );
@@ -306,6 +313,8 @@ export class Game {
     }
 
     processHandGestures(landmarks, handLabel) {
+        const currentTime = Date.now();
+        
         // Simple gesture recognition
         const wrist = landmarks[0];
         const thumbTip = landmarks[4];
@@ -320,7 +329,8 @@ export class Game {
         if (handLabel === 'Left') {
             this.gestureState.leftHand = {
                 height: handHeight,
-                landmarks: landmarks
+                landmarks: landmarks,
+                lastUpdate: currentTime
             };
             
             // Volume control based on left hand height
@@ -328,10 +338,13 @@ export class Game {
             this.gestureState.volumeLevel = volume;
             this.musicManager.setVolume(volume);
             
+            console.log(`🔊 Left hand volume: ${(volume * 100).toFixed(0)}%`);
+            
         } else if (handLabel === 'Right') {
             this.gestureState.rightHand = {
                 height: handHeight,
-                landmarks: landmarks
+                landmarks: landmarks,
+                lastUpdate: currentTime
             };
             
             // Simple gesture recognition for playback control
@@ -340,12 +353,17 @@ export class Game {
                 Math.pow(thumbTip.y - indexTip.y, 2)
             );
             
+            // Prevent rapid gesture triggering
+            const gestureDelay = 1000; // 1 second between gestures
+            
             // Play/pause gesture (thumb and index finger close together)
-            if (thumbIndexDistance < 0.05) {
-                if (!this.gestureState.isPlayPauseGesture) {
+            if (thumbIndexDistance < 0.08) {
+                if (!this.gestureState.isPlayPauseGesture && 
+                    currentTime - this.gestureState.lastGestureTime > gestureDelay) {
                     console.log('🎵 Game: Play/pause gesture detected');
                     this.musicManager.togglePlayPause();
                     this.gestureState.isPlayPauseGesture = true;
+                    this.gestureState.lastGestureTime = currentTime;
                 }
             } else {
                 this.gestureState.isPlayPauseGesture = false;
@@ -353,10 +371,12 @@ export class Game {
             
             // Next track gesture (hand raised high)
             if (handHeight > 0.8) {
-                if (!this.gestureState.isNextGesture) {
+                if (!this.gestureState.isNextGesture && 
+                    currentTime - this.gestureState.lastGestureTime > gestureDelay) {
                     console.log('⏭️ Game: Next track gesture detected');
                     this.musicManager.playNext();
                     this.gestureState.isNextGesture = true;
+                    this.gestureState.lastGestureTime = currentTime;
                 }
             } else {
                 this.gestureState.isNextGesture = false;
@@ -364,14 +384,18 @@ export class Game {
             
             // Previous track gesture (hand lowered)
             if (handHeight < 0.2) {
-                if (!this.gestureState.isPrevGesture) {
+                if (!this.gestureState.isPrevGesture && 
+                    currentTime - this.gestureState.lastGestureTime > gestureDelay) {
                     console.log('⏮️ Game: Previous track gesture detected');
                     this.musicManager.playPrevious();
                     this.gestureState.isPrevGesture = true;
+                    this.gestureState.lastGestureTime = currentTime;
                 }
             } else {
                 this.gestureState.isPrevGesture = false;
             }
+            
+            console.log(`👋 Right hand height: ${(handHeight * 100).toFixed(0)}%, pinch distance: ${thumbIndexDistance.toFixed(3)}`);
         }
     }
 
@@ -385,26 +409,56 @@ export class Game {
         
         // Keyboard shortcuts for debugging
         document.addEventListener('keydown', (event) => {
+            // Prevent default for our handled keys
+            if (['KeyG', 'KeyV', 'KeyC'].includes(event.code)) {
+                event.preventDefault();
+            }
+            
             switch(event.code) {
                 case 'KeyG':
-                    console.log('🤖 Gesture state:', this.gestureState);
+                    console.log('🤖 Current gesture state:', {
+                        leftHand: this.gestureState.leftHand ? {
+                            height: this.gestureState.leftHand.height,
+                            lastUpdate: new Date(this.gestureState.leftHand.lastUpdate).toLocaleTimeString()
+                        } : null,
+                        rightHand: this.gestureState.rightHand ? {
+                            height: this.gestureState.rightHand.height,
+                            lastUpdate: new Date(this.gestureState.rightHand.lastUpdate).toLocaleTimeString()
+                        } : null,
+                        volumeLevel: this.gestureState.volumeLevel,
+                        activeGestures: {
+                            playPause: this.gestureState.isPlayPauseGesture,
+                            next: this.gestureState.isNextGesture,
+                            prev: this.gestureState.isPrevGesture
+                        }
+                    });
                     break;
                 case 'KeyV':
                     // Toggle video visibility for debugging
                     if (this.videoElement) {
-                        this.videoElement.style.display = 
-                            this.videoElement.style.display === 'none' ? 'block' : 'none';
+                        const isHidden = this.videoElement.style.display === 'none';
+                        this.videoElement.style.display = isHidden ? 'block' : 'none';
+                        console.log(`📹 Video ${isHidden ? 'shown' : 'hidden'}`);
                     }
                     if (this.canvasElement) {
-                        this.canvasElement.style.display = 
-                            this.canvasElement.style.display === 'none' ? 'block' : 'none';
+                        const isHidden = this.canvasElement.style.display === 'none';
+                        this.canvasElement.style.display = isHidden ? 'block' : 'none';
+                        console.log(`🎨 Canvas ${isHidden ? 'shown' : 'hidden'}`);
+                    }
+                    break;
+                case 'KeyC':
+                    // Toggle canvas visibility only
+                    if (this.canvasElement) {
+                        const isHidden = this.canvasElement.style.display === 'none';
+                        this.canvasElement.style.display = isHidden ? 'block' : 'none';
+                        console.log(`🎨 Canvas landmarks ${isHidden ? 'shown' : 'hidden'}`);
                     }
                     break;
             }
         });
         
         console.log('✅ Game: Event listeners setup complete');
-        console.log('🔧 Debug keys: G (gesture state), V (toggle video visibility)');
+        console.log('🔧 Debug keys: G (gesture state), V (toggle video/canvas), C (toggle canvas only)');
     }
 
     onWindowResize() {
