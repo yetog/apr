@@ -193,6 +193,7 @@
 .playlist-section {
     padding: 20px;
     flex: 1;
+    position: relative;
 }
 
 .playlist-section h4 {
@@ -205,6 +206,7 @@
 .playlist-container {
     max-height: 300px;
     overflow-y: auto;
+    position: relative;
 }
 
 .empty-playlist {
@@ -225,6 +227,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    position: relative;
 }
 
 .playlist-item:hover {
@@ -282,6 +285,60 @@
 
 .playlist-item-btn:hover {
     background: rgba(255, 255, 255, 0.2);
+}
+
+.drag-handle {
+    cursor: grab;
+    padding: 4px 8px;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.playlist-item:hover .drag-handle {
+    opacity: 1;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Drag and Drop Styles */
+.playlist-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.playlist-item.drag-over {
+    background: rgba(123, 67, 148, 0.3);
+    border-left-color: #7B4394;
+}
+
+.playlist-container.drag-active .playlist-item:not(.dragging) {
+    transition: transform 0.2s ease;
+}
+
+.drop-indicator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #7B4394;
+    z-index: 1000;
+    pointer-events: none;
+}
+
+.drop-line {
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #7B4394, transparent);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
 }
 
 .playback-controls {

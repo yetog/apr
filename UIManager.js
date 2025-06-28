@@ -12,6 +12,11 @@ export class UIManager {
         this.fileInput = null;
         this.urlInput = null;
         
+        // Drag and drop state
+        this.draggedItem = null;
+        this.draggedIndex = null;
+        this.dropIndicator = null;
+        
         this.init();
         this.setupEventListeners();
         this.setupMusicManagerCallbacks();
@@ -27,9 +32,19 @@ export class UIManager {
         this.fileInput = document.getElementById('file-input');
         this.urlInput = document.getElementById('url-input');
 
+        // Create drop indicator
+        this.createDropIndicator();
+
         // Initial render
         this.renderCurrentTrack();
         this.renderPlaylist();
+    }
+
+    createDropIndicator() {
+        this.dropIndicator = document.createElement('div');
+        this.dropIndicator.className = 'drop-indicator';
+        this.dropIndicator.style.display = 'none';
+        this.dropIndicator.innerHTML = '<div class="drop-line"></div>';
     }
 
     setupEventListeners() {
@@ -169,6 +184,119 @@ export class UIManager {
         }
     }
 
+    // Drag and Drop Implementation
+    setupDragAndDrop(playlistItem, index) {
+        playlistItem.draggable = true;
+        playlistItem.dataset.index = index;
+
+        // Drag start
+        playlistItem.addEventListener('dragstart', (e) => {
+            this.draggedItem = playlistItem;
+            this.draggedIndex = index;
+            playlistItem.classList.add('dragging');
+            
+            // Set drag data
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', playlistItem.outerHTML);
+            
+            // Add drag styling to other items
+            this.playlistContainer.classList.add('drag-active');
+        });
+
+        // Drag end
+        playlistItem.addEventListener('dragend', (e) => {
+            playlistItem.classList.remove('dragging');
+            this.playlistContainer.classList.remove('drag-active');
+            this.hideDropIndicator();
+            this.draggedItem = null;
+            this.draggedIndex = null;
+        });
+
+        // Drag over
+        playlistItem.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            if (this.draggedItem && this.draggedItem !== playlistItem) {
+                const rect = playlistItem.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                const dropPosition = e.clientY < midpoint ? 'before' : 'after';
+                
+                this.showDropIndicator(playlistItem, dropPosition);
+            }
+        });
+
+        // Drag enter
+        playlistItem.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            if (this.draggedItem && this.draggedItem !== playlistItem) {
+                playlistItem.classList.add('drag-over');
+            }
+        });
+
+        // Drag leave
+        playlistItem.addEventListener('dragleave', (e) => {
+            playlistItem.classList.remove('drag-over');
+        });
+
+        // Drop
+        playlistItem.addEventListener('drop', (e) => {
+            e.preventDefault();
+            playlistItem.classList.remove('drag-over');
+            
+            if (this.draggedItem && this.draggedItem !== playlistItem) {
+                const targetIndex = parseInt(playlistItem.dataset.index);
+                const rect = playlistItem.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                const dropPosition = e.clientY < midpoint ? 'before' : 'after';
+                
+                let newIndex = targetIndex;
+                if (dropPosition === 'after') {
+                    newIndex = targetIndex + 1;
+                }
+                
+                // Adjust for the item being moved
+                if (this.draggedIndex < newIndex) {
+                    newIndex--;
+                }
+                
+                // Perform the reorder
+                this.musicManager.reorderTrack(this.draggedIndex, newIndex);
+            }
+            
+            this.hideDropIndicator();
+        });
+    }
+
+    showDropIndicator(targetItem, position) {
+        this.hideDropIndicator();
+        
+        const rect = targetItem.getBoundingClientRect();
+        const containerRect = this.playlistContainer.getBoundingClientRect();
+        
+        this.dropIndicator.style.display = 'block';
+        this.dropIndicator.style.position = 'absolute';
+        this.dropIndicator.style.left = '0';
+        this.dropIndicator.style.right = '0';
+        this.dropIndicator.style.height = '2px';
+        this.dropIndicator.style.zIndex = '1000';
+        
+        if (position === 'before') {
+            this.dropIndicator.style.top = (rect.top - containerRect.top - 1) + 'px';
+        } else {
+            this.dropIndicator.style.top = (rect.bottom - containerRect.top - 1) + 'px';
+        }
+        
+        this.playlistContainer.appendChild(this.dropIndicator);
+    }
+
+    hideDropIndicator() {
+        if (this.dropIndicator && this.dropIndicator.parentNode) {
+            this.dropIndicator.parentNode.removeChild(this.dropIndicator);
+        }
+        this.dropIndicator.style.display = 'none';
+    }
+
     // UI Rendering
     renderCurrentTrack() {
         const currentTrack = this.musicManager.getCurrentTrack();
@@ -203,17 +331,23 @@ export class UIManager {
                     <button class="playlist-item-btn play-btn" data-index="${index}">▶️</button>
                     <button class="playlist-item-btn delete-btn" data-track-id="${track.id}">🗑️</button>
                 </div>
+                <div class="drag-handle">⋮⋮</div>
             </div>
         `).join('');
 
         this.playlistContainer.innerHTML = playlistHTML;
 
         // Add event listeners to playlist items
-        this.playlistContainer.querySelectorAll('.playlist-item').forEach(item => {
+        this.playlistContainer.querySelectorAll('.playlist-item').forEach((item, index) => {
+            // Setup drag and drop
+            this.setupDragAndDrop(item, index);
+            
+            // Click to select track
             item.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('playlist-item-btn')) {
-                    const index = parseInt(item.dataset.index);
-                    this.musicManager.loadTrack(index);
+                if (!e.target.classList.contains('playlist-item-btn') && 
+                    !e.target.classList.contains('drag-handle')) {
+                    const trackIndex = parseInt(item.dataset.index);
+                    this.musicManager.loadTrack(trackIndex);
                 }
             });
         });
