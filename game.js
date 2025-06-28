@@ -190,8 +190,8 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Import MediaPipe Hands with updated CDN URLs
-            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.9.2009020404/hands.js');
+            // Import MediaPipe Hands with stable CDN URLs
+            const { Hands } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.js');
             const { Camera } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils@0.3.1675029046/camera_utils.js');
             
             console.log('✅ Game: MediaPipe modules loaded');
@@ -199,7 +199,7 @@ export class Game {
             // Initialize Hands
             this.hands = new Hands({
                 locateFile: (file) => {
-                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.9.2009020404/${file}`;
+                    return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`;
                 }
             });
 
