@@ -31,7 +31,8 @@ export class Game {
             isNextGesture: false,
             isPrevGesture: false,
             volumeLevel: 0.7,
-            lastGestureTime: 0
+            lastGestureTime: 0,
+            handCount: 0
         };
         
         // Animation
@@ -139,12 +140,13 @@ export class Game {
 
             console.log('📹 Game: Requesting camera access...');
             
-            // Request camera access
+            // Request camera access with higher resolution for better hand detection
             const constraints = {
                 video: {
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 },
-                    facingMode: 'user'
+                    width: { ideal: 1920, min: 1280 },
+                    height: { ideal: 1080, min: 720 },
+                    facingMode: 'user',
+                    frameRate: { ideal: 30, min: 15 }
                 }
             };
 
@@ -158,6 +160,7 @@ export class Game {
             await new Promise((resolve, reject) => {
                 this.videoElement.onloadedmetadata = () => {
                     console.log('✅ Game: Video metadata loaded');
+                    console.log(`📹 Video resolution: ${this.videoElement.videoWidth}x${this.videoElement.videoHeight}`);
                     resolve();
                 };
                 this.videoElement.onerror = (error) => {
@@ -209,12 +212,12 @@ export class Game {
                 }
             });
 
-            // Configure Hands
+            // Configure Hands for better two-hand detection
             this.hands.setOptions({
-                maxNumHands: 2,
-                modelComplexity: 1,
-                minDetectionConfidence: 0.5,
-                minTrackingConfidence: 0.5
+                maxNumHands: 2,              // Allow detection of both hands
+                modelComplexity: 1,          // Balance between accuracy and performance
+                minDetectionConfidence: 0.7, // Higher confidence for more stable detection
+                minTrackingConfidence: 0.5   // Lower tracking confidence for smoother tracking
             });
 
             // Set up results callback
@@ -222,7 +225,7 @@ export class Game {
                 this.onHandsResults(results);
             });
 
-            console.log('✅ Game: MediaPipe Hands configured');
+            console.log('✅ Game: MediaPipe Hands configured for two-hand detection');
 
             // Start processing video frames manually (without camera_utils)
             this.startVideoProcessing();
@@ -258,15 +261,25 @@ export class Game {
         this.canvasCtx.save();
         this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
 
+        // Reset hand count
+        this.gestureState.handCount = 0;
+
         if (results.multiHandLandmarks && results.multiHandedness) {
-            console.log(`🤖 Game: Detected ${results.multiHandLandmarks.length} hand(s)`);
+            this.gestureState.handCount = results.multiHandLandmarks.length;
+            
+            // Log hand detection for debugging
+            if (this.gestureState.handCount > 0) {
+                const handLabels = results.multiHandedness.map(h => h.label).join(', ');
+                console.log(`🤖 Game: Detected ${this.gestureState.handCount} hand(s): ${handLabels}`);
+            }
             
             for (let i = 0; i < results.multiHandLandmarks.length; i++) {
                 const landmarks = results.multiHandLandmarks[i];
                 const handedness = results.multiHandedness[i];
                 
-                // Draw hand landmarks
-                this.drawHandLandmarks(landmarks);
+                // Draw hand landmarks with different colors for each hand
+                const handColor = handedness.label === 'Left' ? '#00FF00' : '#FF6600'; // Green for left, orange for right
+                this.drawHandLandmarks(landmarks, handColor);
                 
                 // Process gestures
                 this.processHandGestures(landmarks, handedness.label);
@@ -276,7 +289,7 @@ export class Game {
         this.canvasCtx.restore();
     }
 
-    drawHandLandmarks(landmarks) {
+    drawHandLandmarks(landmarks, color = '#00FF00') {
         // Draw connections
         const connections = [
             [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
@@ -287,7 +300,7 @@ export class Game {
             [5, 9], [9, 13], [13, 17] // Palm
         ];
 
-        this.canvasCtx.strokeStyle = '#00FF00';
+        this.canvasCtx.strokeStyle = color;
         this.canvasCtx.lineWidth = 4; // Thicker lines for visibility
         
         connections.forEach(([start, end]) => {
@@ -301,7 +314,7 @@ export class Game {
         });
 
         // Draw landmarks
-        this.canvasCtx.fillStyle = '#FF0000';
+        this.canvasCtx.fillStyle = color === '#00FF00' ? '#FF0000' : '#FFFF00'; // Red dots for left hand, yellow for right
         landmarks.forEach((landmark) => {
             this.canvasCtx.beginPath();
             this.canvasCtx.arc(
@@ -326,8 +339,8 @@ export class Game {
         const ringTip = landmarks[16];
         const pinkyTip = landmarks[20];
 
-        // Calculate hand height (for volume control)
-        const handHeight = 1 - wrist.y; // Invert Y coordinate
+        // Calculate hand height (for volume control) - normalized 0-1
+        const handHeight = Math.max(0, Math.min(1, 1 - wrist.y)); // Invert Y coordinate and clamp
         
         if (handLabel === 'Left') {
             this.gestureState.leftHand = {
@@ -337,7 +350,7 @@ export class Game {
             };
             
             // Volume control based on left hand height
-            const volume = Math.max(0, Math.min(1, handHeight));
+            const volume = handHeight;
             this.gestureState.volumeLevel = volume;
             this.musicManager.setVolume(volume);
             
@@ -357,13 +370,14 @@ export class Game {
             );
             
             // Prevent rapid gesture triggering
-            const gestureDelay = 1000; // 1 second between gestures
+            const gestureDelay = 1500; // 1.5 seconds between gestures
             
             // Play/pause gesture (thumb and index finger close together)
-            if (thumbIndexDistance < 0.08) {
+            const pinchThreshold = 0.06; // Slightly more sensitive
+            if (thumbIndexDistance < pinchThreshold) {
                 if (!this.gestureState.isPlayPauseGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('🎵 Game: Play/pause gesture detected');
+                    console.log('🎵 Game: Play/pause gesture detected (pinch)');
                     this.musicManager.togglePlayPause();
                     this.gestureState.isPlayPauseGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -373,10 +387,11 @@ export class Game {
             }
             
             // Next track gesture (hand raised high)
-            if (handHeight > 0.8) {
+            const nextThreshold = 0.75; // Slightly lower threshold
+            if (handHeight > nextThreshold) {
                 if (!this.gestureState.isNextGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('⏭️ Game: Next track gesture detected');
+                    console.log('⏭️ Game: Next track gesture detected (hand high)');
                     this.musicManager.playNext();
                     this.gestureState.isNextGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -386,10 +401,11 @@ export class Game {
             }
             
             // Previous track gesture (hand lowered)
-            if (handHeight < 0.2) {
+            const prevThreshold = 0.25; // Slightly higher threshold
+            if (handHeight < prevThreshold) {
                 if (!this.gestureState.isPrevGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('⏮️ Game: Previous track gesture detected');
+                    console.log('⏮️ Game: Previous track gesture detected (hand low)');
                     this.musicManager.playPrevious();
                     this.gestureState.isPrevGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -398,7 +414,7 @@ export class Game {
                 this.gestureState.isPrevGesture = false;
             }
             
-            console.log(`👋 Right hand height: ${(handHeight * 100).toFixed(0)}%, pinch distance: ${thumbIndexDistance.toFixed(3)}`);
+            console.log(`👋 Right hand - height: ${(handHeight * 100).toFixed(0)}%, pinch: ${thumbIndexDistance.toFixed(3)}`);
         }
     }
 
@@ -413,13 +429,14 @@ export class Game {
         // Keyboard shortcuts for debugging
         document.addEventListener('keydown', (event) => {
             // Prevent default for our handled keys
-            if (['KeyG', 'KeyV', 'KeyC'].includes(event.code)) {
+            if (['KeyG', 'KeyV', 'KeyC', 'KeyH'].includes(event.code)) {
                 event.preventDefault();
             }
             
             switch(event.code) {
                 case 'KeyG':
                     console.log('🤖 Current gesture state:', {
+                        handCount: this.gestureState.handCount,
                         leftHand: this.gestureState.leftHand ? {
                             height: this.gestureState.leftHand.height,
                             lastUpdate: new Date(this.gestureState.leftHand.lastUpdate).toLocaleTimeString()
@@ -435,6 +452,39 @@ export class Game {
                             prev: this.gestureState.isPrevGesture
                         }
                     });
+                    break;
+                case 'KeyH':
+                    // Show help
+                    console.log(`
+🎮 GESTURE DJ CONTROLLER HELP:
+
+📹 Camera Controls:
+- V: Toggle video/canvas visibility
+- C: Toggle canvas landmarks only
+
+🤖 Hand Gestures:
+LEFT HAND (Volume Control):
+- Raise hand up: Increase volume
+- Lower hand down: Decrease volume
+
+RIGHT HAND (Playback Control):
+- Pinch (thumb + index): Play/Pause
+- Raise hand high (75%+): Next track
+- Lower hand low (25%-): Previous track
+
+⌨️ Keyboard Shortcuts:
+- Space: Play/Pause
+- Arrow Left/Right: Previous/Next track
+- M: Toggle music sidebar
+- G: Show gesture state (debug)
+- H: Show this help
+
+🎵 Tips:
+- Use good lighting for better hand detection
+- Keep hands visible in camera frame
+- Wait 1.5 seconds between gestures
+- Green lines = Left hand, Orange lines = Right hand
+                    `);
                     break;
                 case 'KeyV':
                     // Toggle video visibility for debugging
@@ -461,7 +511,7 @@ export class Game {
         });
         
         console.log('✅ Game: Event listeners setup complete');
-        console.log('🔧 Debug keys: G (gesture state), V (toggle video/canvas), C (toggle canvas only)');
+        console.log('🔧 Debug keys: G (gesture state), V (toggle video/canvas), C (toggle canvas only), H (help)');
     }
 
     onWindowResize() {
