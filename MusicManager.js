@@ -44,6 +44,7 @@ export class MusicManager {
     async start() {
         if (this.isStarted) return;
 
+        console.log('🎵 Starting MusicManager...');
         await Tone.start();
 
         // Create effects chain
@@ -70,29 +71,30 @@ export class MusicManager {
         this.analyser = new Tone.Analyser('waveform', 1024);
         this.analyser.connect(this.autoFilter);
 
-        // Create single player (simplified)
-        this.player = new Tone.Player().connect(this.analyser);
+        // Don't create player here - wait for track loading
+        this.player = null;
         
         // Set initial volume
         this.updateVolume();
 
-        // Set up player event listeners
-        this.setupPlayerEvents();
-
         this.isStarted = true;
-        console.log("DJ MusicManager started with crossfader control.");
+        console.log("✅ DJ MusicManager started with crossfader control and effects chain.");
     }
 
     setupPlayerEvents() {
+        if (!this.player) return;
+        
         this.player.onstop = () => {
             this.isPlaying = false;
             this.notifyPlayStateChange();
+            console.log('🎵 Track stopped');
         };
     }
 
     // Crossfader Control (0 = full A, 1 = full B) - Visual only for now
     setCrossfaderPosition(position) {
         this.crossfaderPosition = Math.max(0, Math.min(1, position));
+        console.log(`🎛️ Crossfader position: ${(this.crossfaderPosition * 100).toFixed(0)}%`);
         
         if (this.onCrossfaderChange) {
             this.onCrossfaderChange(this.crossfaderPosition);
@@ -105,10 +107,15 @@ export class MusicManager {
 
     // Effect Controls
     toggleEffect(effectName) {
-        if (!this.effects[effectName]) return false;
+        if (!this.effects[effectName]) {
+            console.warn(`❌ Unknown effect: ${effectName}`);
+            return false;
+        }
         
         this.effects[effectName].active = !this.effects[effectName].active;
         this.updateEffect(effectName);
+        
+        console.log(`🎛️ Effect ${effectName}: ${this.effects[effectName].active ? 'ON' : 'OFF'} (${(this.effects[effectName].intensity * 100).toFixed(0)}%)`);
         
         if (this.onEffectChange) {
             this.onEffectChange(effectName, this.effects[effectName]);
@@ -122,6 +129,8 @@ export class MusicManager {
         
         this.effects[effectName].intensity = Math.max(0, Math.min(1, intensity));
         this.updateEffect(effectName);
+        
+        console.log(`🎛️ ${effectName} intensity: ${(this.effects[effectName].intensity * 100).toFixed(0)}%`);
         
         if (this.onEffectChange) {
             this.onEffectChange(effectName, this.effects[effectName]);
@@ -176,6 +185,7 @@ export class MusicManager {
         };
 
         this.playlist.push(track);
+        console.log(`🎵 Track added: ${track.title} by ${track.artist}`);
         
         if (this.onPlaylistChange) {
             this.onPlaylistChange(this.playlist);
@@ -183,7 +193,7 @@ export class MusicManager {
 
         // Auto-load first track if empty
         if (this.playlist.length === 1 && this.currentTrackIndex === -1) {
-            this.loadTrack(0);
+            setTimeout(() => this.loadTrack(0), 500);
         }
 
         return track;
@@ -192,6 +202,9 @@ export class MusicManager {
     removeTrack(trackId) {
         const index = this.playlist.findIndex(track => track.id === trackId);
         if (index === -1) return false;
+
+        const track = this.playlist[index];
+        console.log(`🗑️ Removing track: ${track.title}`);
 
         // Handle removal of current track
         if (index === this.currentTrackIndex) {
@@ -213,11 +226,18 @@ export class MusicManager {
 
     // Track Loading
     async loadTrack(trackIndex) {
-        if (trackIndex < 0 || trackIndex >= this.playlist.length) return false;
+        if (trackIndex < 0 || trackIndex >= this.playlist.length) {
+            console.warn(`❌ Invalid track index: ${trackIndex}`);
+            return false;
+        }
         
         const track = this.playlist[trackIndex];
-        if (!track || !track.url) return false;
+        if (!track || !track.url) {
+            console.warn(`❌ Invalid track or URL: ${track?.title || 'Unknown'}`);
+            return false;
+        }
 
+        console.log(`🎵 Loading track: ${track.title} by ${track.artist}`);
         this.isLoading = true;
         this.stop();
 
@@ -225,14 +245,15 @@ export class MusicManager {
             // Dispose old player
             if (this.player) {
                 this.player.dispose();
+                this.player = null;
             }
 
-            // Create new player
+            // Create new player with proper error handling
             this.player = new Tone.Player({
                 url: track.url,
                 onload: () => {
                     this.isLoading = false;
-                    console.log(`Track loaded: ${track.title}`);
+                    console.log(`✅ Track loaded successfully: ${track.title}`);
                     
                     if (this.onTrackChange) {
                         this.onTrackChange(track);
@@ -240,9 +261,14 @@ export class MusicManager {
                 },
                 onerror: (error) => {
                     this.isLoading = false;
-                    console.error(`Error loading track: ${track.title}`, error);
+                    console.error(`❌ Error loading track: ${track.title}`, error);
                 }
-            }).connect(this.analyser);
+            });
+
+            // Connect to effects chain
+            if (this.analyser) {
+                this.player.connect(this.analyser);
+            }
 
             // Update volume
             this.updateVolume();
@@ -254,38 +280,46 @@ export class MusicManager {
             return true;
         } catch (error) {
             this.isLoading = false;
-            console.error(`Error loading track:`, error);
+            console.error(`❌ Error creating player for track:`, error);
             return false;
         }
     }
 
     // Playback Controls
     play() {
-        if (!this.player || this.isLoading) return false;
+        if (!this.player || this.isLoading) {
+            console.warn('❌ Cannot play: No player or still loading');
+            return false;
+        }
 
         try {
             if (this.player.state === 'stopped') {
                 this.player.start();
+                console.log('▶️ Playing track');
             }
             this.isPlaying = true;
             this.notifyPlayStateChange();
             return true;
         } catch (error) {
-            console.error(`Error playing:`, error);
+            console.error(`❌ Error playing:`, error);
             return false;
         }
     }
 
     pause() {
-        if (!this.player) return false;
+        if (!this.player) {
+            console.warn('❌ Cannot pause: No player');
+            return false;
+        }
 
         try {
             this.player.stop();
             this.isPlaying = false;
             this.notifyPlayStateChange();
+            console.log('⏸️ Track paused');
             return true;
         } catch (error) {
-            console.error(`Error pausing:`, error);
+            console.error(`❌ Error pausing:`, error);
             return false;
         }
     }
@@ -295,27 +329,36 @@ export class MusicManager {
     }
 
     togglePlayPause() {
-        return this.isPlaying ? this.pause() : this.play();
+        const result = this.isPlaying ? this.pause() : this.play();
+        console.log(`🎵 Toggle play/pause: ${this.isPlaying ? 'Playing' : 'Paused'}`);
+        return result;
     }
 
     playNext() {
         if (this.currentTrackIndex < this.playlist.length - 1) {
+            console.log('⏭️ Playing next track');
             return this.loadTrack(this.currentTrackIndex + 1);
+        } else {
+            console.log('⏭️ Already at last track');
+            return false;
         }
-        return false;
     }
 
     playPrevious() {
         if (this.currentTrackIndex > 0) {
+            console.log('⏮️ Playing previous track');
             return this.loadTrack(this.currentTrackIndex - 1);
+        } else {
+            console.log('⏮️ Already at first track');
+            return false;
         }
-        return false;
     }
 
     // Volume Control
     setVolume(volume) {
         this.volume = Math.max(0, Math.min(1, volume));
         this.updateVolume();
+        console.log(`🔊 Volume: ${(this.volume * 100).toFixed(0)}%`);
     }
 
     updateVolume() {

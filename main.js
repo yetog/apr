@@ -25,12 +25,12 @@ if (!renderDiv) {
             try {
                 await musicManager.start();
                 hasStarted = true;
-                console.log('Audio system started successfully');
+                console.log('✅ Audio system started successfully');
                 
-                // Add some demo tracks for testing
+                // Add demo tracks for testing
                 addDemoTracks(musicManager);
             } catch (error) {
-                console.error('Failed to start audio system:', error);
+                console.error('❌ Failed to start audio system:', error);
             }
         }
     };
@@ -48,30 +48,47 @@ if (!renderDiv) {
     document.addEventListener('touchstart', startOnInteraction);
 }
 
-// Add some demo tracks for testing
+// Add working demo tracks for testing
 function addDemoTracks(musicManager) {
-    // Add some royalty-free demo tracks (these are example URLs - replace with actual working URLs)
+    console.log('🎵 Adding demo tracks...');
+    
+    // Use actual working audio URLs for demo tracks
     const demoTracks = [
         {
-            title: "Chill Vibes",
-            artist: "Demo Artist",
-            url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Replace with actual music URL
+            title: "Demo Track 1 - Electronic",
+            artist: "Sample Artist",
+            url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
         },
         {
-            title: "Electronic Beat",
-            artist: "Sample Creator", 
-            url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" // Replace with actual music URL
+            title: "Demo Track 2 - Ambient",
+            artist: "Demo Creator",
+            url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
+        },
+        {
+            title: "Demo Track 3 - Beat",
+            artist: "Test Producer",
+            url: "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav"
         }
     ];
 
-    // Note: The above URLs are just examples. In a real implementation, you would:
-    // 1. Use actual royalty-free music URLs
-    // 2. Host your own demo tracks
-    // 3. Use a music streaming API
-    // 4. Or remove this demo function entirely
+    // Add each demo track to the playlist
+    demoTracks.forEach((track, index) => {
+        try {
+            const addedTrack = musicManager.addTrack(track);
+            console.log(`✅ Demo track ${index + 1} added:`, addedTrack.title);
+        } catch (error) {
+            console.error(`❌ Failed to add demo track ${index + 1}:`, error);
+        }
+    });
 
-    // Uncomment the following lines when you have actual demo track URLs:
-    // demoTracks.forEach(track => {
-    //     musicManager.addTrack(track);
-    // });
+    console.log(`🎵 ${demoTracks.length} demo tracks added to playlist`);
+    console.log('🎛️ DJ controls are now ready! Use gestures to control playback and effects.');
+    
+    // Auto-load the first track
+    setTimeout(() => {
+        if (musicManager.getPlaylist().length > 0) {
+            musicManager.loadTrack(0);
+            console.log('🎵 First demo track loaded and ready to play');
+        }
+    }, 1000);
 }

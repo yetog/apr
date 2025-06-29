@@ -364,10 +364,7 @@ export class Game {
             if (this.gestureState.activeEffect) {
                 this.musicManager.setEffectIntensity(this.gestureState.activeEffect, handHeight);
                 this.gestureState.effectIntensity = handHeight;
-                console.log(`🎛️ ${this.gestureState.activeEffect} intensity: ${(handHeight * 100).toFixed(0)}%`);
             }
-            
-            console.log(`🔊 Left hand - volume: ${(volume * 100).toFixed(0)}%, height: ${(handHeight * 100).toFixed(0)}%`);
             
         } else if (handLabel === 'Right') {
             this.gestureState.rightHand = {
@@ -473,8 +470,6 @@ export class Game {
             } else {
                 this.gestureState.isPrevGesture = false;
             }
-            
-            console.log(`🎛️ Right hand - crossfader: ${(handHorizontal * 100).toFixed(0)}%, height: ${(handHeight * 100).toFixed(0)}%, active effect: ${this.gestureState.activeEffect || 'none'}`);
         }
     }
 
