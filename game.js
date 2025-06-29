@@ -119,7 +119,7 @@ export class Game {
                 throw new Error('getUserMedia is not supported in this browser');
             }
 
-            // Create video element (full screen)
+            // Create video element (full screen, mirrored)
             this.videoElement = document.createElement('video');
             this.videoElement.style.position = 'fixed';
             this.videoElement.style.top = '0';
@@ -129,13 +129,14 @@ export class Game {
             this.videoElement.style.zIndex = '998';
             this.videoElement.style.opacity = '0.4';
             this.videoElement.style.objectFit = 'cover';
+            this.videoElement.style.transform = 'scaleX(-1)'; // Mirror the video horizontally
             this.videoElement.autoplay = true;
             this.videoElement.playsInline = true;
             this.videoElement.muted = true;
             
             document.body.appendChild(this.videoElement);
 
-            // Create canvas for MediaPipe (full screen)
+            // Create canvas for MediaPipe (full screen, mirrored)
             this.canvasElement = document.createElement('canvas');
             this.canvasElement.style.position = 'fixed';
             this.canvasElement.style.top = '0';
@@ -144,6 +145,7 @@ export class Game {
             this.canvasElement.style.height = '100vh';
             this.canvasElement.style.zIndex = '999';
             this.canvasElement.style.pointerEvents = 'none';
+            this.canvasElement.style.transform = 'scaleX(-1)'; // Mirror the canvas horizontally
             this.canvasElement.width = window.innerWidth;
             this.canvasElement.height = window.innerHeight;
             this.canvasCtx = this.canvasElement.getContext('2d');
@@ -184,7 +186,7 @@ export class Game {
 
             await this.videoElement.play();
             this.isCameraActive = true;
-            console.log('✅ Game: Camera setup complete');
+            console.log('✅ Game: Camera setup complete with mirroring');
             
         } catch (error) {
             console.error('❌ Game: Camera setup failed:', error);
@@ -571,6 +573,8 @@ RIGHT HAND (DJ Controls):
 - Right hand horizontal position is your crossfader
 - Combine gestures for complex DJ techniques
 - Green lines = Left hand, Orange lines = Right hand
+
+📹 Camera is now mirrored for natural interaction!
                     `);
                     break;
                 case 'KeyV':
