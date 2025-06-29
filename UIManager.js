@@ -12,6 +12,10 @@ export class UIManager {
         this.fileInput = null;
         this.urlInput = null;
         
+        // DJ-specific UI elements
+        this.crossfaderIndicator = null;
+        this.effectItems = null;
+        
         // Drag and drop state
         this.draggedItem = null;
         this.draggedIndex = null;
@@ -31,6 +35,10 @@ export class UIManager {
         this.playPauseBtn = document.getElementById('play-pause-btn');
         this.fileInput = document.getElementById('file-input');
         this.urlInput = document.getElementById('url-input');
+        
+        // DJ-specific elements
+        this.crossfaderIndicator = document.getElementById('crossfader-indicator');
+        this.effectItems = document.querySelectorAll('.effect-item');
 
         // Create drop indicator
         this.createDropIndicator();
@@ -38,6 +46,7 @@ export class UIManager {
         // Initial render
         this.renderCurrentTrack();
         this.renderPlaylist();
+        this.updateDJControls();
     }
 
     createDropIndicator() {
@@ -85,6 +94,14 @@ export class UIManager {
             this.musicManager.playNext();
         });
 
+        // DJ Controls - Effect items click handlers
+        this.effectItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const effectName = item.dataset.effect;
+                this.musicManager.toggleEffect(effectName);
+            });
+        });
+
         // Close sidebar when clicking outside
         document.addEventListener('click', (e) => {
             if (this.isOpen && !this.sidebar.contains(e.target) && !this.sidebarToggle.contains(e.target)) {
@@ -113,6 +130,23 @@ export class UIManager {
                     e.preventDefault();
                     this.toggleSidebar();
                     break;
+                // DJ-specific shortcuts
+                case 'Digit1':
+                    e.preventDefault();
+                    this.musicManager.toggleEffect('reverb');
+                    break;
+                case 'Digit2':
+                    e.preventDefault();
+                    this.musicManager.toggleEffect('delay');
+                    break;
+                case 'Digit3':
+                    e.preventDefault();
+                    this.musicManager.toggleEffect('distortion');
+                    break;
+                case 'Digit4':
+                    e.preventDefault();
+                    this.musicManager.toggleEffect('filter');
+                    break;
             }
         });
     }
@@ -130,6 +164,54 @@ export class UIManager {
         this.musicManager.setOnPlaylistChange(() => {
             this.renderPlaylist();
         });
+
+        // DJ-specific callbacks
+        this.musicManager.setOnCrossfaderChange((position) => {
+            this.updateCrossfaderDisplay(position);
+        });
+
+        this.musicManager.setOnEffectChange((effectName, effectState) => {
+            this.updateEffectDisplay(effectName, effectState);
+        });
+    }
+
+    // DJ Controls Updates
+    updateDJControls() {
+        // Update crossfader
+        this.updateCrossfaderDisplay(this.musicManager.getCrossfaderPosition());
+        
+        // Update effects
+        const effects = this.musicManager.getAllEffects();
+        Object.keys(effects).forEach(effectName => {
+            this.updateEffectDisplay(effectName, effects[effectName]);
+        });
+    }
+
+    updateCrossfaderDisplay(position) {
+        if (this.crossfaderIndicator) {
+            // Convert position (0-1) to percentage for CSS
+            const percentage = position * 100;
+            this.crossfaderIndicator.style.left = `${percentage}%`;
+            
+            // Update color based on position
+            const hue = position * 120; // 0 = red, 120 = green
+            this.crossfaderIndicator.style.backgroundColor = `hsl(${hue}, 70%, 50%)`;
+        }
+    }
+
+    updateEffectDisplay(effectName, effectState) {
+        const effectItem = document.querySelector(`[data-effect="${effectName}"]`);
+        if (effectItem) {
+            const statusElement = effectItem.querySelector('.effect-status');
+            
+            if (effectState.active) {
+                effectItem.classList.add('active');
+                statusElement.textContent = `ON (${Math.round(effectState.intensity * 100)}%)`;
+            } else {
+                effectItem.classList.remove('active');
+                statusElement.textContent = 'OFF';
+            }
+        }
     }
 
     // Sidebar Management
@@ -347,7 +429,7 @@ export class UIManager {
                 if (!e.target.classList.contains('playlist-item-btn') && 
                     !e.target.classList.contains('drag-handle')) {
                     const trackIndex = parseInt(item.dataset.index);
-                    this.musicManager.loadTrack(trackIndex);
+                    this.musicManager.loadTrackToDeck('A', trackIndex); // Load to deck A by default
                 }
             });
         });
@@ -357,8 +439,8 @@ export class UIManager {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const index = parseInt(btn.dataset.index);
-                this.musicManager.loadTrack(index);
-                this.musicManager.play();
+                this.musicManager.loadTrackToDeck('A', index);
+                this.musicManager.playDeck('A');
             });
         });
 
@@ -392,12 +474,10 @@ export class UIManager {
 
     // Public methods for external control
     showTrackImportSuccess(trackName) {
-        // Could show a toast notification or update UI
         console.log(`Track imported: ${trackName}`);
     }
 
     showError(message) {
-        // Could show error toast or modal
         console.error(message);
         alert(message); // Simple fallback
     }

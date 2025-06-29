@@ -23,16 +23,30 @@ export class Game {
         this.isCameraActive = false;
         this.mediaPipeCamera = null;
         
-        // Gesture state
+        // Enhanced gesture state for DJ controls
         this.gestureState = {
             leftHand: null,
             rightHand: null,
+            
+            // Basic controls
             isPlayPauseGesture: false,
             isNextGesture: false,
             isPrevGesture: false,
             volumeLevel: 0.7,
+            
+            // DJ-specific controls
+            crossfaderPosition: 0.5,
+            isCrossfaderActive: false,
+            
+            // Effect controls
+            activeEffect: null, // 'reverb', 'delay', 'distortion', 'filter'
+            effectIntensity: 0.5,
+            isEffectToggleGesture: false,
+            
+            // Gesture recognition
             lastGestureTime: 0,
-            handCount: 0
+            handCount: 0,
+            gestureHistory: [] // For more complex gesture recognition
         };
         
         // Animation
@@ -49,6 +63,7 @@ export class Game {
             await this.setupCamera();
             await this.setupMediaPipe();
             this.setupEventListeners();
+            this.setupMusicManagerCallbacks();
             this.startAnimation();
             
             console.log('✅ Game: Initialization complete!');
@@ -80,7 +95,7 @@ export class Game {
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderDiv.appendChild(this.renderer.domElement);
 
-        // Waveform visualizer
+        // Enhanced waveform visualizer
         if (this.musicManager.getAnalyser()) {
             this.waveformVisualizer = new WaveformVisualizer(
                 this.scene,
@@ -88,7 +103,7 @@ export class Game {
                 window.innerWidth,
                 window.innerHeight
             );
-            console.log('✅ Game: Waveform visualizer created');
+            console.log('✅ Game: Enhanced waveform visualizer created');
         } else {
             console.warn('⚠️ Game: No analyser available for waveform visualizer');
         }
@@ -100,7 +115,6 @@ export class Game {
         console.log('📹 Game: Setting up camera...');
         
         try {
-            // Check if getUserMedia is supported
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('getUserMedia is not supported in this browser');
             }
@@ -113,13 +127,12 @@ export class Game {
             this.videoElement.style.width = '100vw';
             this.videoElement.style.height = '100vh';
             this.videoElement.style.zIndex = '998';
-            this.videoElement.style.opacity = '0.4'; // Semi-transparent for overlay effect
-            this.videoElement.style.objectFit = 'cover'; // Maintain aspect ratio
+            this.videoElement.style.opacity = '0.4';
+            this.videoElement.style.objectFit = 'cover';
             this.videoElement.autoplay = true;
             this.videoElement.playsInline = true;
-            this.videoElement.muted = true; // Prevent audio feedback
+            this.videoElement.muted = true;
             
-            // Add to DOM
             document.body.appendChild(this.videoElement);
 
             // Create canvas for MediaPipe (full screen)
@@ -130,17 +143,15 @@ export class Game {
             this.canvasElement.style.width = '100vw';
             this.canvasElement.style.height = '100vh';
             this.canvasElement.style.zIndex = '999';
-            this.canvasElement.style.pointerEvents = 'none'; // Allow clicks to pass through
+            this.canvasElement.style.pointerEvents = 'none';
             this.canvasElement.width = window.innerWidth;
             this.canvasElement.height = window.innerHeight;
             this.canvasCtx = this.canvasElement.getContext('2d');
             
-            // Add canvas to DOM
             document.body.appendChild(this.canvasElement);
 
             console.log('📹 Game: Requesting camera access...');
             
-            // Request camera access with higher resolution for better hand detection
             const constraints = {
                 video: {
                     width: { ideal: 1920, min: 1280 },
@@ -153,10 +164,8 @@ export class Game {
             this.cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
             console.log('✅ Game: Camera access granted');
             
-            // Assign stream to video element
             this.videoElement.srcObject = this.cameraStream;
             
-            // Wait for video to be ready
             await new Promise((resolve, reject) => {
                 this.videoElement.onloadedmetadata = () => {
                     console.log('✅ Game: Video metadata loaded');
@@ -168,7 +177,6 @@ export class Game {
                     reject(error);
                 };
                 
-                // Timeout after 10 seconds
                 setTimeout(() => {
                     reject(new Error('Video loading timeout'));
                 }, 10000);
@@ -181,7 +189,6 @@ export class Game {
         } catch (error) {
             console.error('❌ Game: Camera setup failed:', error);
             
-            // Provide specific error messages
             if (error.name === 'NotAllowedError') {
                 throw new Error('Camera access denied. Please allow camera access and refresh the page.');
             } else if (error.name === 'NotFoundError') {
@@ -198,36 +205,31 @@ export class Game {
         console.log('🤖 Game: Setting up MediaPipe...');
         
         try {
-            // Check if Hands is available globally (loaded via script tag)
             if (typeof Hands === 'undefined') {
                 throw new Error('Hands constructor not found. MediaPipe script may not have loaded.');
             }
 
             console.log('✅ Game: MediaPipe Hands class found globally');
 
-            // Initialize Hands using the global constructor
             this.hands = new Hands({
                 locateFile: (file) => {
                     return `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/${file}`;
                 }
             });
 
-            // Configure Hands for better two-hand detection
             this.hands.setOptions({
-                maxNumHands: 2,              // Allow detection of both hands
-                modelComplexity: 1,          // Balance between accuracy and performance
-                minDetectionConfidence: 0.7, // Higher confidence for more stable detection
-                minTrackingConfidence: 0.5   // Lower tracking confidence for smoother tracking
+                maxNumHands: 2,
+                modelComplexity: 1,
+                minDetectionConfidence: 0.7,
+                minTrackingConfidence: 0.5
             });
 
-            // Set up results callback
             this.hands.onResults((results) => {
                 this.onHandsResults(results);
             });
 
-            console.log('✅ Game: MediaPipe Hands configured for two-hand detection');
+            console.log('✅ Game: MediaPipe Hands configured for dual-hand DJ control');
 
-            // Start processing video frames manually (without camera_utils)
             this.startVideoProcessing();
             
         } catch (error) {
@@ -248,7 +250,6 @@ export class Game {
                 }
             }
             
-            // Continue processing at ~30fps
             setTimeout(processFrame, 33);
         };
         
@@ -267,22 +268,16 @@ export class Game {
         if (results.multiHandLandmarks && results.multiHandedness) {
             this.gestureState.handCount = results.multiHandLandmarks.length;
             
-            // Log hand detection for debugging
-            if (this.gestureState.handCount > 0) {
-                const handLabels = results.multiHandedness.map(h => h.label).join(', ');
-                console.log(`🤖 Game: Detected ${this.gestureState.handCount} hand(s): ${handLabels}`);
-            }
-            
             for (let i = 0; i < results.multiHandLandmarks.length; i++) {
                 const landmarks = results.multiHandLandmarks[i];
                 const handedness = results.multiHandedness[i];
                 
-                // Draw hand landmarks with different colors for each hand
-                const handColor = handedness.label === 'Left' ? '#00FF00' : '#FF6600'; // Green for left, orange for right
+                // Enhanced hand colors for DJ interface
+                const handColor = handedness.label === 'Left' ? '#00FF88' : '#FF6600';
                 this.drawHandLandmarks(landmarks, handColor);
                 
-                // Process gestures
-                this.processHandGestures(landmarks, handedness.label);
+                // Process enhanced DJ gestures
+                this.processEnhancedHandGestures(landmarks, handedness.label);
             }
         }
         
@@ -290,7 +285,7 @@ export class Game {
     }
 
     drawHandLandmarks(landmarks, color = '#00FF00') {
-        // Draw connections
+        // Enhanced drawing with thicker lines for better visibility
         const connections = [
             [0, 1], [1, 2], [2, 3], [3, 4], // Thumb
             [0, 5], [5, 6], [6, 7], [7, 8], // Index
@@ -301,7 +296,9 @@ export class Game {
         ];
 
         this.canvasCtx.strokeStyle = color;
-        this.canvasCtx.lineWidth = 4; // Thicker lines for visibility
+        this.canvasCtx.lineWidth = 5; // Thicker for DJ interface
+        this.canvasCtx.shadowColor = color;
+        this.canvasCtx.shadowBlur = 10;
         
         connections.forEach(([start, end]) => {
             const startPoint = landmarks[start];
@@ -313,71 +310,100 @@ export class Game {
             this.canvasCtx.stroke();
         });
 
-        // Draw landmarks
-        this.canvasCtx.fillStyle = color === '#00FF00' ? '#FF0000' : '#FFFF00'; // Red dots for left hand, yellow for right
+        // Enhanced landmark dots
+        this.canvasCtx.fillStyle = color === '#00FF88' ? '#FF0044' : '#FFFF00';
+        this.canvasCtx.shadowBlur = 5;
         landmarks.forEach((landmark) => {
             this.canvasCtx.beginPath();
             this.canvasCtx.arc(
                 landmark.x * this.canvasElement.width,
                 landmark.y * this.canvasElement.height,
-                6, // Larger points for visibility
+                8, // Larger points
                 0,
                 2 * Math.PI
             );
             this.canvasCtx.fill();
         });
+        
+        this.canvasCtx.shadowBlur = 0; // Reset shadow
     }
 
-    processHandGestures(landmarks, handLabel) {
+    processEnhancedHandGestures(landmarks, handLabel) {
         const currentTime = Date.now();
         
-        // Simple gesture recognition
+        // Key landmarks for gesture recognition
         const wrist = landmarks[0];
         const thumbTip = landmarks[4];
         const indexTip = landmarks[8];
         const middleTip = landmarks[12];
         const ringTip = landmarks[16];
         const pinkyTip = landmarks[20];
+        const indexMcp = landmarks[5]; // Index finger base
+        const middleMcp = landmarks[9]; // Middle finger base
 
-        // Calculate hand height (for volume control) - normalized 0-1
-        const handHeight = Math.max(0, Math.min(1, 1 - wrist.y)); // Invert Y coordinate and clamp
+        // Normalize hand position (0-1)
+        const handHeight = Math.max(0, Math.min(1, 1 - wrist.y));
+        const handHorizontal = Math.max(0, Math.min(1, wrist.x));
         
         if (handLabel === 'Left') {
             this.gestureState.leftHand = {
                 height: handHeight,
+                horizontal: handHorizontal,
                 landmarks: landmarks,
                 lastUpdate: currentTime
             };
             
-            // Volume control based on left hand height
+            // Volume control (unchanged)
             const volume = handHeight;
             this.gestureState.volumeLevel = volume;
             this.musicManager.setVolume(volume);
             
-            console.log(`🔊 Left hand volume: ${(volume * 100).toFixed(0)}%`);
+            // Effect intensity control when effect is active
+            if (this.gestureState.activeEffect) {
+                this.musicManager.setEffectIntensity(this.gestureState.activeEffect, handHeight);
+                this.gestureState.effectIntensity = handHeight;
+                console.log(`🎛️ ${this.gestureState.activeEffect} intensity: ${(handHeight * 100).toFixed(0)}%`);
+            }
+            
+            console.log(`🔊 Left hand - volume: ${(volume * 100).toFixed(0)}%, height: ${(handHeight * 100).toFixed(0)}%`);
             
         } else if (handLabel === 'Right') {
             this.gestureState.rightHand = {
                 height: handHeight,
+                horizontal: handHorizontal,
                 landmarks: landmarks,
                 lastUpdate: currentTime
             };
             
-            // Simple gesture recognition for playback control
+            // Crossfader control (horizontal position)
+            this.gestureState.crossfaderPosition = handHorizontal;
+            this.musicManager.setCrossfaderPosition(handHorizontal);
+            
+            // Gesture recognition
             const thumbIndexDistance = Math.sqrt(
                 Math.pow(thumbTip.x - indexTip.x, 2) + 
                 Math.pow(thumbTip.y - indexTip.y, 2)
             );
             
-            // Prevent rapid gesture triggering
-            const gestureDelay = 1500; // 1.5 seconds between gestures
+            const thumbMiddleDistance = Math.sqrt(
+                Math.pow(thumbTip.x - middleTip.x, 2) + 
+                Math.pow(thumbTip.y - middleTip.y, 2)
+            );
             
-            // Play/pause gesture (thumb and index finger close together)
-            const pinchThreshold = 0.06; // Slightly more sensitive
+            // Check if fingers are extended (for effect selection)
+            const indexExtended = indexTip.y < indexMcp.y - 0.02;
+            const middleExtended = middleTip.y < middleMcp.y - 0.02;
+            const ringExtended = ringTip.y < landmarks[13].y - 0.02;
+            const pinkyExtended = pinkyTip.y < landmarks[17].y - 0.02;
+            
+            const gestureDelay = 1500;
+            
+            // Play/pause gesture (pinch - thumb and index)
+            const pinchThreshold = 0.06;
             if (thumbIndexDistance < pinchThreshold) {
                 if (!this.gestureState.isPlayPauseGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('🎵 Game: Play/pause gesture detected (pinch)');
+                    console.log('🎵 DJ: Play/pause gesture detected');
                     this.musicManager.togglePlayPause();
                     this.gestureState.isPlayPauseGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -386,12 +412,46 @@ export class Game {
                 this.gestureState.isPlayPauseGesture = false;
             }
             
-            // Next track gesture (hand raised high)
-            const nextThreshold = 0.75; // Slightly lower threshold
-            if (handHeight > nextThreshold) {
+            // Effect toggle gestures (thumb + middle finger)
+            if (thumbMiddleDistance < pinchThreshold) {
+                if (!this.gestureState.isEffectToggleGesture && 
+                    currentTime - this.gestureState.lastGestureTime > gestureDelay) {
+                    
+                    // Determine which effect to toggle based on extended fingers
+                    let effectToToggle = null;
+                    
+                    if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+                        effectToToggle = 'reverb';
+                    } else if (!indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
+                        effectToToggle = 'delay';
+                    } else if (!indexExtended && !middleExtended && ringExtended && !pinkyExtended) {
+                        effectToToggle = 'distortion';
+                    } else if (!indexExtended && !middleExtended && !ringExtended && pinkyExtended) {
+                        effectToToggle = 'filter';
+                    } else {
+                        // Default to reverb if no specific finger pattern
+                        effectToToggle = 'reverb';
+                    }
+                    
+                    const wasActive = this.musicManager.toggleEffect(effectToToggle);
+                    this.gestureState.activeEffect = wasActive ? effectToToggle : null;
+                    
+                    console.log(`🎛️ DJ: ${effectToToggle} ${wasActive ? 'ON' : 'OFF'}`);
+                    this.gestureState.isEffectToggleGesture = true;
+                    this.gestureState.lastGestureTime = currentTime;
+                }
+            } else {
+                this.gestureState.isEffectToggleGesture = false;
+            }
+            
+            // Track navigation (high/low gestures)
+            const nextThreshold = 0.8;
+            const prevThreshold = 0.2;
+            
+            if (handHeight > nextThreshold && !this.gestureState.isEffectToggleGesture && !this.gestureState.isPlayPauseGesture) {
                 if (!this.gestureState.isNextGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('⏭️ Game: Next track gesture detected (hand high)');
+                    console.log('⏭️ DJ: Next track gesture detected');
                     this.musicManager.playNext();
                     this.gestureState.isNextGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -400,12 +460,10 @@ export class Game {
                 this.gestureState.isNextGesture = false;
             }
             
-            // Previous track gesture (hand lowered)
-            const prevThreshold = 0.25; // Slightly higher threshold
-            if (handHeight < prevThreshold) {
+            if (handHeight < prevThreshold && !this.gestureState.isEffectToggleGesture && !this.gestureState.isPlayPauseGesture) {
                 if (!this.gestureState.isPrevGesture && 
                     currentTime - this.gestureState.lastGestureTime > gestureDelay) {
-                    console.log('⏮️ Game: Previous track gesture detected (hand low)');
+                    console.log('⏮️ DJ: Previous track gesture detected');
                     this.musicManager.playPrevious();
                     this.gestureState.isPrevGesture = true;
                     this.gestureState.lastGestureTime = currentTime;
@@ -414,80 +472,108 @@ export class Game {
                 this.gestureState.isPrevGesture = false;
             }
             
-            console.log(`👋 Right hand - height: ${(handHeight * 100).toFixed(0)}%, pinch: ${thumbIndexDistance.toFixed(3)}`);
+            console.log(`🎛️ Right hand - crossfader: ${(handHorizontal * 100).toFixed(0)}%, height: ${(handHeight * 100).toFixed(0)}%, active effect: ${this.gestureState.activeEffect || 'none'}`);
         }
+    }
+
+    setupMusicManagerCallbacks() {
+        // Enhanced callbacks for DJ features
+        this.musicManager.setOnCrossfaderChange((position) => {
+            // Update visual feedback based on crossfader position
+            if (this.waveformVisualizer) {
+                const hue = position * 120; // 0 = red, 120 = green
+                this.waveformVisualizer.updateCrossfaderPosition(position);
+                this.waveformVisualizer.updateColor(`hsl(${hue}, 70%, 50%)`);
+            }
+        });
+
+        this.musicManager.setOnEffectChange((effectName, effectState) => {
+            // Update visual feedback based on active effects
+            if (this.waveformVisualizer) {
+                this.waveformVisualizer.updateActiveEffect(effectName, effectState);
+            }
+        });
     }
 
     setupEventListeners() {
         console.log('🎮 Game: Setting up event listeners...');
         
-        // Window resize
         window.addEventListener('resize', () => {
             this.onWindowResize();
         });
         
-        // Keyboard shortcuts for debugging
         document.addEventListener('keydown', (event) => {
-            // Prevent default for our handled keys
-            if (['KeyG', 'KeyV', 'KeyC', 'KeyH'].includes(event.code)) {
+            if (['KeyG', 'KeyV', 'KeyC', 'KeyH', 'KeyE', 'KeyX'].includes(event.code)) {
                 event.preventDefault();
             }
             
             switch(event.code) {
                 case 'KeyG':
-                    console.log('🤖 Current gesture state:', {
+                    console.log('🎛️ Current DJ gesture state:', {
                         handCount: this.gestureState.handCount,
+                        crossfaderPosition: this.gestureState.crossfaderPosition,
+                        activeEffect: this.gestureState.activeEffect,
+                        effectIntensity: this.gestureState.effectIntensity,
+                        volumeLevel: this.gestureState.volumeLevel,
                         leftHand: this.gestureState.leftHand ? {
                             height: this.gestureState.leftHand.height,
-                            lastUpdate: new Date(this.gestureState.leftHand.lastUpdate).toLocaleTimeString()
+                            horizontal: this.gestureState.leftHand.horizontal
                         } : null,
                         rightHand: this.gestureState.rightHand ? {
                             height: this.gestureState.rightHand.height,
-                            lastUpdate: new Date(this.gestureState.rightHand.lastUpdate).toLocaleTimeString()
-                        } : null,
-                        volumeLevel: this.gestureState.volumeLevel,
-                        activeGestures: {
-                            playPause: this.gestureState.isPlayPauseGesture,
-                            next: this.gestureState.isNextGesture,
-                            prev: this.gestureState.isPrevGesture
-                        }
+                            horizontal: this.gestureState.rightHand.horizontal
+                        } : null
                     });
                     break;
                 case 'KeyH':
-                    // Show help
                     console.log(`
-🎮 GESTURE DJ CONTROLLER HELP:
+🎛️ ENHANCED DJ CONTROLLER HELP:
 
 📹 Camera Controls:
 - V: Toggle video/canvas visibility
 - C: Toggle canvas landmarks only
 
-🤖 Hand Gestures:
-LEFT HAND (Volume Control):
-- Raise hand up: Increase volume
-- Lower hand down: Decrease volume
+🎛️ Enhanced Hand Gestures:
 
-RIGHT HAND (Playback Control):
+LEFT HAND (Volume & Effect Intensity):
+- Raise/lower hand: Volume control
+- When effect is active: Controls effect intensity
+
+RIGHT HAND (DJ Controls):
+- Horizontal position: Crossfader (left=deck A, right=deck B)
 - Pinch (thumb + index): Play/Pause
-- Raise hand high (75%+): Next track
-- Lower hand low (25%-): Previous track
+- Thumb + middle + finger patterns: Toggle effects
+  • Index finger up: Reverb
+  • Middle finger up: Delay  
+  • Ring finger up: Distortion
+  • Pinky up: Auto Filter
+- Raise hand high (80%+): Next track
+- Lower hand (20%-): Previous track
+
+🎵 DJ Features:
+- Crossfader blends between deck A and B
+- Multiple audio effects with gesture control
+- Real-time visual feedback
+- Enhanced waveform visualization
 
 ⌨️ Keyboard Shortcuts:
 - Space: Play/Pause
 - Arrow Left/Right: Previous/Next track
 - M: Toggle music sidebar
 - G: Show gesture state (debug)
+- E: Toggle random effect (debug)
+- X: Reset crossfader to center (debug)
 - H: Show this help
 
-🎵 Tips:
-- Use good lighting for better hand detection
-- Keep hands visible in camera frame
-- Wait 1.5 seconds between gestures
+🎵 DJ Tips:
+- Use both hands simultaneously for full control
+- Left hand controls volume and effect intensity
+- Right hand horizontal position is your crossfader
+- Combine gestures for complex DJ techniques
 - Green lines = Left hand, Orange lines = Right hand
                     `);
                     break;
                 case 'KeyV':
-                    // Toggle video visibility for debugging
                     if (this.videoElement) {
                         const isHidden = this.videoElement.style.display === 'none';
                         this.videoElement.style.display = isHidden ? 'block' : 'none';
@@ -500,18 +586,29 @@ RIGHT HAND (Playback Control):
                     }
                     break;
                 case 'KeyC':
-                    // Toggle canvas visibility only
                     if (this.canvasElement) {
                         const isHidden = this.canvasElement.style.display === 'none';
                         this.canvasElement.style.display = isHidden ? 'block' : 'none';
                         console.log(`🎨 Canvas landmarks ${isHidden ? 'shown' : 'hidden'}`);
                     }
                     break;
+                case 'KeyE':
+                    // Debug: Toggle random effect
+                    const effects = ['reverb', 'delay', 'distortion', 'filter'];
+                    const randomEffect = effects[Math.floor(Math.random() * effects.length)];
+                    this.musicManager.toggleEffect(randomEffect);
+                    console.log(`🎛️ Debug: Toggled ${randomEffect}`);
+                    break;
+                case 'KeyX':
+                    // Debug: Reset crossfader to center
+                    this.musicManager.setCrossfaderPosition(0.5);
+                    console.log('🎛️ Debug: Crossfader reset to center');
+                    break;
             }
         });
         
-        console.log('✅ Game: Event listeners setup complete');
-        console.log('🔧 Debug keys: G (gesture state), V (toggle video/canvas), C (toggle canvas only), H (help)');
+        console.log('✅ Game: Enhanced DJ event listeners setup complete');
+        console.log('🔧 Debug keys: G (gesture state), V (toggle video/canvas), C (toggle canvas), E (random effect), X (reset crossfader), H (help)');
     }
 
     onWindowResize() {
@@ -519,7 +616,6 @@ RIGHT HAND (Playback Control):
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         
-        // Update canvas size
         if (this.canvasElement) {
             this.canvasElement.width = window.innerWidth;
             this.canvasElement.height = window.innerHeight;
@@ -531,34 +627,54 @@ RIGHT HAND (Playback Control):
     }
 
     startAnimation() {
-        console.log('🎮 Game: Starting animation loop...');
+        console.log('🎮 Game: Starting enhanced DJ animation loop...');
         
         const animate = () => {
             this.animationId = requestAnimationFrame(animate);
             
-            // Update waveform visualizer
+            // Update enhanced waveform visualizer
             if (this.waveformVisualizer) {
                 this.waveformVisualizer.update();
                 
-                // Update color based on gesture state
-                if (this.gestureState.leftHand) {
-                    const hue = this.gestureState.leftHand.height * 360;
-                    this.waveformVisualizer.updateColor(`hsl(${hue}, 70%, 50%)`);
+                // Dynamic color based on crossfader position and active effects
+                if (this.gestureState.rightHand) {
+                    const crossfaderHue = this.gestureState.crossfaderPosition * 120; // 0-120 degrees
+                    let baseColor = `hsl(${crossfaderHue}, 70%, 50%)`;
+                    
+                    // Modify color based on active effect
+                    if (this.gestureState.activeEffect) {
+                        const effectColors = {
+                            reverb: 'hsl(240, 80%, 60%)', // Blue
+                            delay: 'hsl(300, 80%, 60%)', // Purple
+                            distortion: 'hsl(0, 80%, 60%)', // Red
+                            filter: 'hsl(60, 80%, 60%)' // Yellow
+                        };
+                        baseColor = effectColors[this.gestureState.activeEffect] || baseColor;
+                    }
+                    
+                    this.waveformVisualizer.updateColor(baseColor);
+                }
+                
+                // Update crossfader position in visualizer
+                this.waveformVisualizer.updateCrossfaderPosition(this.gestureState.crossfaderPosition);
+                
+                // Update effect state in visualizer
+                if (this.gestureState.activeEffect) {
+                    const effectState = this.musicManager.getEffect(this.gestureState.activeEffect);
+                    this.waveformVisualizer.updateActiveEffect(this.gestureState.activeEffect, effectState);
                 }
             }
             
-            // Render scene
             this.renderer.render(this.scene, this.camera);
         };
         
         animate();
-        console.log('✅ Game: Animation loop started');
+        console.log('✅ Game: Enhanced DJ animation loop started');
     }
 
     showError(message) {
         console.error('❌ Game Error:', message);
         
-        // Create error display
         const errorDiv = document.createElement('div');
         errorDiv.style.position = 'fixed';
         errorDiv.style.top = '50%';
@@ -583,22 +699,18 @@ RIGHT HAND (Playback Control):
     dispose() {
         console.log('🎮 Game: Disposing...');
         
-        // Stop animation
         if (this.animationId) {
             cancelAnimationFrame(this.animationId);
         }
         
-        // Stop camera
         if (this.cameraStream) {
             this.cameraStream.getTracks().forEach(track => track.stop());
         }
         
-        // Clean up MediaPipe
         if (this.hands) {
             this.hands.close();
         }
         
-        // Clean up Three.js
         if (this.waveformVisualizer) {
             this.waveformVisualizer.dispose();
         }
@@ -607,7 +719,6 @@ RIGHT HAND (Playback Control):
             this.renderer.dispose();
         }
         
-        // Remove DOM elements
         if (this.videoElement) {
             this.videoElement.remove();
         }

@@ -3,25 +3,25 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Gesture DJ Controller</title>
+        <title>Enhanced DJ Gesture Controller</title>
         <link rel="stylesheet" href="styles.css">
 
         <!-- Primary Meta Tags -->
-        <meta name="title" content="Gesture DJ Controller">
-        <meta name="description" content="Hand-controlled DJ interface with gesture controls and playlist management">
+        <meta name="title" content="Enhanced DJ Gesture Controller">
+        <meta name="description" content="Professional DJ interface with crossfader, effects, and advanced gesture controls">
 
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website">
         <meta property="og:url" content="https://collidingscopes.github.io/arpeggiator/">
-        <meta property="og:title" content="Gesture DJ Controller">
-        <meta property="og:description" content="Hand-controlled DJ interface with gesture controls and playlist management">
+        <meta property="og:title" content="Enhanced DJ Gesture Controller">
+        <meta property="og:description" content="Professional DJ interface with crossfader, effects, and advanced gesture controls">
         <meta property="og:image" content="https://raw.githubusercontent.com/collidingScopes/arpeggiator/main/assets/siteOGImage.webp">
 
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
         <meta property="twitter:url" content="https://collidingscopes.github.io/arpeggiator/">
-        <meta property="twitter:title" content="Gesture DJ Controller">
-        <meta property="twitter:description" content="Hand-controlled DJ interface with gesture controls and playlist management">
+        <meta property="twitter:title" content="Enhanced DJ Gesture Controller">
+        <meta property="twitter:description" content="Professional DJ interface with crossfader, effects, and advanced gesture controls">
         <meta property="twitter:image" content="https://raw.githubusercontent.com/collidingScopes/arpeggiator/main/assets/siteOGImage.webp">
 
         <script defer src="https://cloud.umami.is/script.js" data-website-id="eb59c81c-27cb-4e1d-9e8c-bfbe70c48cd9"></script>
@@ -43,13 +43,13 @@
 
             <!-- Sidebar Toggle Button -->
             <button id="sidebar-toggle" class="sidebar-toggle">
-                <span>🎵</span>
+                <span>🎛️</span>
             </button>
 
             <!-- Sidebar Container -->
             <div id="sidebar" class="sidebar">
                 <div class="sidebar-header">
-                    <h3>DJ Controller</h3>
+                    <h3>DJ Controller Pro</h3>
                     <button id="sidebar-close" class="sidebar-close">×</button>
                 </div>
 
@@ -59,6 +59,43 @@
                     <div id="current-track-info" class="current-track-info">
                         <div class="track-title">No track loaded</div>
                         <div class="track-artist">Select a track to begin</div>
+                    </div>
+                </div>
+
+                <!-- DJ Controls Section -->
+                <div class="dj-controls-section">
+                    <h4>DJ Controls</h4>
+                    <div class="control-row">
+                        <label>Crossfader</label>
+                        <div class="crossfader-display">
+                            <span>A</span>
+                            <div class="crossfader-bar">
+                                <div id="crossfader-indicator" class="crossfader-indicator"></div>
+                            </div>
+                            <span>B</span>
+                        </div>
+                    </div>
+                    <div class="effects-grid">
+                        <div class="effect-item" data-effect="reverb">
+                            <span class="effect-icon">🌊</span>
+                            <span class="effect-name">Reverb</span>
+                            <div class="effect-status">OFF</div>
+                        </div>
+                        <div class="effect-item" data-effect="delay">
+                            <span class="effect-icon">🔄</span>
+                            <span class="effect-name">Delay</span>
+                            <div class="effect-status">OFF</div>
+                        </div>
+                        <div class="effect-item" data-effect="distortion">
+                            <span class="effect-icon">⚡</span>
+                            <span class="effect-name">Distortion</span>
+                            <div class="effect-status">OFF</div>
+                        </div>
+                        <div class="effect-item" data-effect="filter">
+                            <span class="effect-icon">🎚️</span>
+                            <span class="effect-name">Filter</span>
+                            <div class="effect-status">OFF</div>
+                        </div>
                     </div>
                 </div>
 
@@ -91,26 +128,40 @@
                 <!-- Sidebar Footer -->
                 <div class="sidebar-footer">
                     <div class="gesture-help">
-                        <h4>Gesture Controls</h4>
+                        <h4>Enhanced Gesture Controls</h4>
                         <div class="gesture-item">
                             <span class="gesture-icon">🤚</span>
                             <div class="gesture-text">
-                                <strong>Left Hand:</strong> Volume Control<br>
-                                <small>Raise/lower hand to adjust volume</small>
+                                <strong>Left Hand:</strong> Volume & Effect Intensity<br>
+                                <small>Raise/lower for volume, controls effect intensity when active</small>
+                            </div>
+                        </div>
+                        <div class="gesture-item">
+                            <span class="gesture-icon">🎛️</span>
+                            <div class="gesture-text">
+                                <strong>Right Hand Horizontal:</strong> Crossfader<br>
+                                <small>Left = Deck A, Right = Deck B</small>
                             </div>
                         </div>
                         <div class="gesture-item">
                             <span class="gesture-icon">👌</span>
                             <div class="gesture-text">
-                                <strong>Right Hand:</strong> Playback Control<br>
-                                <small>Pinch: Play/Pause • High: Next • Low: Previous</small>
+                                <strong>Pinch (Thumb+Index):</strong> Play/Pause<br>
+                                <small>Quick pinch to toggle playback</small>
+                            </div>
+                        </div>
+                        <div class="gesture-item">
+                            <span class="gesture-icon">🎚️</span>
+                            <div class="gesture-text">
+                                <strong>Effects (Thumb+Middle+Finger):</strong><br>
+                                <small>Index=Reverb, Middle=Delay, Ring=Distortion, Pinky=Filter</small>
                             </div>
                         </div>
                         <div class="gesture-item">
                             <span class="gesture-icon">⌨️</span>
                             <div class="gesture-text">
-                                <strong>Press H</strong> for full help<br>
-                                <small>Shows all keyboard shortcuts</small>
+                                <strong>Press H</strong> for complete help<br>
+                                <small>Shows all keyboard shortcuts and advanced controls</small>
                             </div>
                         </div>
                     </div>
@@ -132,8 +183,8 @@
                 </div>
             </div>
 
-            <!-- Main Info Text -->
-            <span id="info-text">show both hands to camera • left=volume, right=playback • press H for help</span>
+            <!-- Enhanced Main Info Text -->
+            <span id="info-text">🎛️ DJ MODE: left hand=volume/effects • right hand=crossfader/controls • press H for help</span>
 
         </div>
         <script type="module" src="main.js"></script>

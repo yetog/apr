@@ -30,7 +30,7 @@
     z-index: 200;
 }
 
-/* Sidebar Styles */
+/* Enhanced Sidebar Styles for DJ Interface */
 .sidebar-toggle {
     position: fixed;
     top: 50%;
@@ -57,8 +57,8 @@
 .sidebar {
     position: fixed;
     top: 0;
-    left: -400px;
-    width: 400px;
+    left: -450px;
+    width: 450px;
     height: 100vh;
     background: linear-gradient(135deg, rgba(123, 67, 148, 0.95), rgba(53, 47, 108, 0.95));
     backdrop-filter: blur(10px);
@@ -132,6 +132,110 @@
 .track-artist {
     font-size: 0.9em;
     opacity: 0.7;
+}
+
+/* DJ Controls Section */
+.dj-controls-section {
+    padding: 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dj-controls-section h4 {
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+.control-row {
+    margin-bottom: 20px;
+}
+
+.control-row label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+
+.crossfader-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    border-radius: 6px;
+}
+
+.crossfader-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    position: relative;
+}
+
+.crossfader-indicator {
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 16px;
+    height: 16px;
+    background: #7B4394;
+    border-radius: 50%;
+    transition: left 0.1s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.effects-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.effect-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 12px;
+    border-radius: 6px;
+    text-align: center;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+
+.effect-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.effect-item.active {
+    border-color: #7B4394;
+    background: rgba(123, 67, 148, 0.2);
+}
+
+.effect-icon {
+    display: block;
+    font-size: 1.5em;
+    margin-bottom: 5px;
+}
+
+.effect-name {
+    display: block;
+    font-size: 0.9em;
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+
+.effect-status {
+    font-size: 0.8em;
+    opacity: 0.7;
+}
+
+.effect-item.active .effect-status {
+    opacity: 1;
+    color: #7B4394;
+    font-weight: 500;
 }
 
 .import-section {
@@ -385,7 +489,7 @@
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Gesture Help Section */
+/* Enhanced Gesture Help Section */
 .gesture-help {
     width: 100%;
     margin-bottom: 1rem;
@@ -401,7 +505,7 @@
 
 .gesture-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     margin-bottom: 12px;
     padding: 8px;
@@ -413,6 +517,7 @@
     font-size: 1.5em;
     min-width: 30px;
     text-align: center;
+    margin-top: 2px;
 }
 
 .gesture-text {
@@ -463,4 +568,18 @@
     .gesture-text {
         text-align: center;
     }
+    
+    .effects-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Animation for active effects */
+@keyframes effectPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.effect-item.active {
+    animation: effectPulse 2s ease-in-out infinite;
 }
