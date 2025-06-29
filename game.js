@@ -353,7 +353,7 @@ export class Game {
                 lastUpdate: currentTime
             };
             
-            // Volume control (unchanged)
+            // Volume control
             const volume = handHeight;
             this.gestureState.volumeLevel = volume;
             this.musicManager.setVolume(volume);

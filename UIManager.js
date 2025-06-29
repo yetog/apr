@@ -342,8 +342,8 @@ export class UIManager {
                     newIndex--;
                 }
                 
-                // Perform the reorder
-                this.musicManager.reorderTrack(this.draggedIndex, newIndex);
+                // Perform the reorder (would need to implement in MusicManager)
+                console.log(`Reorder from ${this.draggedIndex} to ${newIndex}`);
             }
             
             this.hideDropIndicator();
@@ -429,7 +429,7 @@ export class UIManager {
                 if (!e.target.classList.contains('playlist-item-btn') && 
                     !e.target.classList.contains('drag-handle')) {
                     const trackIndex = parseInt(item.dataset.index);
-                    this.musicManager.loadTrackToDeck('A', trackIndex); // Load to deck A by default
+                    this.musicManager.loadTrack(trackIndex);
                 }
             });
         });
@@ -439,8 +439,8 @@ export class UIManager {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const index = parseInt(btn.dataset.index);
-                this.musicManager.loadTrackToDeck('A', index);
-                this.musicManager.playDeck('A');
+                this.musicManager.loadTrack(index);
+                this.musicManager.play();
             });
         });
 

@@ -3,10 +3,8 @@ import * as Tone from 'https://esm.sh/tone';
 // Enhanced MusicManager for DJ-style dual-deck crossfader control
 export class MusicManager {
     constructor() {
-        // Dual deck setup for crossfader
-        this.playerA = null;
-        this.playerB = null;
-        this.currentDeck = 'A'; // Which deck is currently active for loading
+        // Single player setup (simplified back to working state)
+        this.player = null;
         
         // Effects chain
         this.reverb = null;
@@ -27,15 +25,12 @@ export class MusicManager {
         
         // Playlist management
         this.playlist = [];
-        this.currentTrackIndexA = -1;
-        this.currentTrackIndexB = -1;
-        this.isPlayingA = false;
-        this.isPlayingB = false;
+        this.currentTrackIndex = -1;
+        this.isPlaying = false;
         this.volume = 0.7;
         
         // Track loading state
-        this.isLoadingA = false;
-        this.isLoadingB = false;
+        this.isLoading = false;
         
         // Event callbacks
         this.onTrackChange = null;
@@ -75,53 +70,32 @@ export class MusicManager {
         this.analyser = new Tone.Analyser('waveform', 1024);
         this.analyser.connect(this.autoFilter);
 
-        // Create dual players for crossfader
-        this.playerA = new Tone.Player().connect(this.analyser);
-        this.playerB = new Tone.Player().connect(this.analyser);
+        // Create single player (simplified)
+        this.player = new Tone.Player().connect(this.analyser);
         
-        // Set initial volumes based on crossfader position
-        this.updateCrossfaderVolumes();
+        // Set initial volume
+        this.updateVolume();
 
         // Set up player event listeners
         this.setupPlayerEvents();
 
         this.isStarted = true;
-        console.log("DJ MusicManager started with dual deck crossfader control.");
+        console.log("DJ MusicManager started with crossfader control.");
     }
 
     setupPlayerEvents() {
-        this.playerA.onstop = () => {
-            this.isPlayingA = false;
-            this.notifyPlayStateChange();
-        };
-
-        this.playerB.onstop = () => {
-            this.isPlayingB = false;
+        this.player.onstop = () => {
+            this.isPlaying = false;
             this.notifyPlayStateChange();
         };
     }
 
-    // Crossfader Control (0 = full A, 1 = full B)
+    // Crossfader Control (0 = full A, 1 = full B) - Visual only for now
     setCrossfaderPosition(position) {
         this.crossfaderPosition = Math.max(0, Math.min(1, position));
-        this.updateCrossfaderVolumes();
         
         if (this.onCrossfaderChange) {
             this.onCrossfaderChange(this.crossfaderPosition);
-        }
-    }
-
-    updateCrossfaderVolumes() {
-        if (this.playerA && this.playerB) {
-            // Crossfader curve - equal power crossfading
-            const angleA = this.crossfaderPosition * Math.PI / 2;
-            const angleB = (1 - this.crossfaderPosition) * Math.PI / 2;
-            
-            const volumeA = Math.cos(angleA) * this.volume;
-            const volumeB = Math.cos(angleB) * this.volume;
-            
-            this.playerA.volume.value = Tone.gainToDb(volumeA);
-            this.playerB.volume.value = Tone.gainToDb(volumeB);
         }
     }
 
@@ -190,7 +164,7 @@ export class MusicManager {
         return { ...this.effects };
     }
 
-    // Playlist Management (Enhanced for dual deck)
+    // Playlist Management
     addTrack(trackInfo) {
         const track = {
             id: Date.now() + Math.random(),
@@ -207,9 +181,9 @@ export class MusicManager {
             this.onPlaylistChange(this.playlist);
         }
 
-        // Auto-load first track to deck A if empty
-        if (this.playlist.length === 1 && this.currentTrackIndexA === -1) {
-            this.loadTrackToDeck('A', 0);
+        // Auto-load first track if empty
+        if (this.playlist.length === 1 && this.currentTrackIndex === -1) {
+            this.loadTrack(0);
         }
 
         return track;
@@ -219,19 +193,14 @@ export class MusicManager {
         const index = this.playlist.findIndex(track => track.id === trackId);
         if (index === -1) return false;
 
-        // Handle removal from active decks
-        if (index === this.currentTrackIndexA) {
-            this.stopDeck('A');
-            this.currentTrackIndexA = -1;
-        }
-        if (index === this.currentTrackIndexB) {
-            this.stopDeck('B');
-            this.currentTrackIndexB = -1;
+        // Handle removal of current track
+        if (index === this.currentTrackIndex) {
+            this.stop();
+            this.currentTrackIndex = -1;
         }
 
-        // Adjust indices
-        if (index < this.currentTrackIndexA) this.currentTrackIndexA--;
-        if (index < this.currentTrackIndexB) this.currentTrackIndexB--;
+        // Adjust current index
+        if (index < this.currentTrackIndex) this.currentTrackIndex--;
 
         this.playlist.splice(index, 1);
 
@@ -242,144 +211,103 @@ export class MusicManager {
         return true;
     }
 
-    // Dual Deck Track Loading
-    async loadTrackToDeck(deck, trackIndex) {
+    // Track Loading
+    async loadTrack(trackIndex) {
         if (trackIndex < 0 || trackIndex >= this.playlist.length) return false;
         
         const track = this.playlist[trackIndex];
         if (!track || !track.url) return false;
 
-        const isLoadingKey = deck === 'A' ? 'isLoadingA' : 'isLoadingB';
-        const playerKey = deck === 'A' ? 'playerA' : 'playerB';
-        const currentIndexKey = deck === 'A' ? 'currentTrackIndexA' : 'currentTrackIndexB';
-
-        this[isLoadingKey] = true;
-        this.stopDeck(deck);
+        this.isLoading = true;
+        this.stop();
 
         try {
             // Dispose old player
-            if (this[playerKey]) {
-                this[playerKey].dispose();
+            if (this.player) {
+                this.player.dispose();
             }
 
             // Create new player
-            this[playerKey] = new Tone.Player({
+            this.player = new Tone.Player({
                 url: track.url,
                 onload: () => {
-                    this[isLoadingKey] = false;
-                    console.log(`Track loaded to deck ${deck}: ${track.title}`);
+                    this.isLoading = false;
+                    console.log(`Track loaded: ${track.title}`);
                     
                     if (this.onTrackChange) {
-                        this.onTrackChange(track, deck);
+                        this.onTrackChange(track);
                     }
                 },
                 onerror: (error) => {
-                    this[isLoadingKey] = false;
-                    console.error(`Error loading track to deck ${deck}: ${track.title}`, error);
+                    this.isLoading = false;
+                    console.error(`Error loading track: ${track.title}`, error);
                 }
             }).connect(this.analyser);
 
-            // Update crossfader volumes
-            this.updateCrossfaderVolumes();
+            // Update volume
+            this.updateVolume();
             
             // Set up event listeners
             this.setupPlayerEvents();
 
-            this[currentIndexKey] = trackIndex;
+            this.currentTrackIndex = trackIndex;
             return true;
         } catch (error) {
-            this[isLoadingKey] = false;
-            console.error(`Error loading track to deck ${deck}:`, error);
+            this.isLoading = false;
+            console.error(`Error loading track:`, error);
             return false;
         }
     }
 
-    // Playback Controls for Dual Deck
-    playDeck(deck) {
-        const player = deck === 'A' ? this.playerA : this.playerB;
-        const isPlayingKey = deck === 'A' ? 'isPlayingA' : 'isPlayingB';
-        const isLoadingKey = deck === 'A' ? 'isLoadingA' : 'isLoadingB';
-
-        if (!player || this[isLoadingKey]) return false;
-
-        try {
-            if (player.state === 'stopped') {
-                player.start();
-            }
-            this[isPlayingKey] = true;
-            this.notifyPlayStateChange();
-            return true;
-        } catch (error) {
-            console.error(`Error playing deck ${deck}:`, error);
-            return false;
-        }
-    }
-
-    pauseDeck(deck) {
-        const player = deck === 'A' ? this.playerA : this.playerB;
-        const isPlayingKey = deck === 'A' ? 'isPlayingA' : 'isPlayingB';
-
-        if (!player) return false;
-
-        try {
-            player.stop();
-            this[isPlayingKey] = false;
-            this.notifyPlayStateChange();
-            return true;
-        } catch (error) {
-            console.error(`Error pausing deck ${deck}:`, error);
-            return false;
-        }
-    }
-
-    stopDeck(deck) {
-        return this.pauseDeck(deck);
-    }
-
-    togglePlayPauseDeck(deck) {
-        const isPlaying = deck === 'A' ? this.isPlayingA : this.isPlayingB;
-        return isPlaying ? this.pauseDeck(deck) : this.playDeck(deck);
-    }
-
-    // Legacy methods for backward compatibility
-    togglePlayPause() {
-        // Toggle the currently active deck based on crossfader position
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        return this.togglePlayPauseDeck(activeDeck);
-    }
-
+    // Playback Controls
     play() {
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        return this.playDeck(activeDeck);
+        if (!this.player || this.isLoading) return false;
+
+        try {
+            if (this.player.state === 'stopped') {
+                this.player.start();
+            }
+            this.isPlaying = true;
+            this.notifyPlayStateChange();
+            return true;
+        } catch (error) {
+            console.error(`Error playing:`, error);
+            return false;
+        }
     }
 
     pause() {
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        return this.pauseDeck(activeDeck);
+        if (!this.player) return false;
+
+        try {
+            this.player.stop();
+            this.isPlaying = false;
+            this.notifyPlayStateChange();
+            return true;
+        } catch (error) {
+            console.error(`Error pausing:`, error);
+            return false;
+        }
     }
 
     stop() {
-        this.stopDeck('A');
-        this.stopDeck('B');
-        return true;
+        return this.pause();
+    }
+
+    togglePlayPause() {
+        return this.isPlaying ? this.pause() : this.play();
     }
 
     playNext() {
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        const currentIndex = activeDeck === 'A' ? this.currentTrackIndexA : this.currentTrackIndexB;
-        
-        if (currentIndex < this.playlist.length - 1) {
-            return this.loadTrackToDeck(activeDeck, currentIndex + 1);
+        if (this.currentTrackIndex < this.playlist.length - 1) {
+            return this.loadTrack(this.currentTrackIndex + 1);
         }
         return false;
     }
 
     playPrevious() {
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        const currentIndex = activeDeck === 'A' ? this.currentTrackIndexA : this.currentTrackIndexB;
-        
-        if (currentIndex > 0) {
-            return this.loadTrackToDeck(activeDeck, currentIndex - 1);
+        if (this.currentTrackIndex > 0) {
+            return this.loadTrack(this.currentTrackIndex - 1);
         }
         return false;
     }
@@ -387,28 +315,44 @@ export class MusicManager {
     // Volume Control
     setVolume(volume) {
         this.volume = Math.max(0, Math.min(1, volume));
-        this.updateCrossfaderVolumes();
+        this.updateVolume();
+    }
+
+    updateVolume() {
+        if (this.player) {
+            this.player.volume.value = Tone.gainToDb(this.volume);
+        }
     }
 
     getVolume() {
         return this.volume;
     }
 
+    // Legacy dual deck methods for compatibility
+    loadTrackToDeck(deck, trackIndex) {
+        return this.loadTrack(trackIndex);
+    }
+
+    playDeck(deck) {
+        return this.play();
+    }
+
+    pauseDeck(deck) {
+        return this.pause();
+    }
+
+    stopDeck(deck) {
+        return this.stop();
+    }
+
+    togglePlayPauseDeck(deck) {
+        return this.togglePlayPause();
+    }
+
     // Getters
     getCurrentTrack(deck = null) {
-        if (deck === 'A' && this.currentTrackIndexA >= 0) {
-            return this.playlist[this.currentTrackIndexA];
-        }
-        if (deck === 'B' && this.currentTrackIndexB >= 0) {
-            return this.playlist[this.currentTrackIndexB];
-        }
-        
-        // Legacy: return active deck track
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        const currentIndex = activeDeck === 'A' ? this.currentTrackIndexA : this.currentTrackIndexB;
-        
-        if (currentIndex >= 0 && currentIndex < this.playlist.length) {
-            return this.playlist[currentIndex];
+        if (this.currentTrackIndex >= 0 && this.currentTrackIndex < this.playlist.length) {
+            return this.playlist[this.currentTrackIndex];
         }
         return null;
     }
@@ -418,27 +362,15 @@ export class MusicManager {
     }
 
     getCurrentTrackIndex(deck = null) {
-        if (deck === 'A') return this.currentTrackIndexA;
-        if (deck === 'B') return this.currentTrackIndexB;
-        
-        // Legacy: return active deck index
-        const activeDeck = this.crossfaderPosition < 0.5 ? 'A' : 'B';
-        return activeDeck === 'A' ? this.currentTrackIndexA : this.currentTrackIndexB;
+        return this.currentTrackIndex;
     }
 
     getIsPlaying(deck = null) {
-        if (deck === 'A') return this.isPlayingA;
-        if (deck === 'B') return this.isPlayingB;
-        
-        // Legacy: return if any deck is playing
-        return this.isPlayingA || this.isPlayingB;
+        return this.isPlaying;
     }
 
     getIsLoading(deck = null) {
-        if (deck === 'A') return this.isLoadingA;
-        if (deck === 'B') return this.isLoadingB;
-        
-        return this.isLoadingA || this.isLoadingB;
+        return this.isLoading;
     }
 
     getAnalyser() {
@@ -448,7 +380,7 @@ export class MusicManager {
     // Event notification helpers
     notifyPlayStateChange() {
         if (this.onPlayStateChange) {
-            this.onPlayStateChange(this.isPlayingA || this.isPlayingB);
+            this.onPlayStateChange(this.isPlaying);
         }
     }
 
@@ -473,7 +405,7 @@ export class MusicManager {
         this.onEffectChange = callback;
     }
 
-    // Utility methods (unchanged)
+    // Utility methods
     static createTrackFromFile(file) {
         const url = URL.createObjectURL(file);
         const name = file.name.replace(/\.[^/.]+$/, "");
