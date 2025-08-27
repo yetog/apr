@@ -342,8 +342,15 @@ export class UIManager {
                     newIndex--;
                 }
                 
-                // Perform the reorder (would need to implement in MusicManager)
-                console.log(`Reorder from ${this.draggedIndex} to ${newIndex}`);
+                // Perform the actual reorder
+                console.log(`🎵 UI: Reordering from ${this.draggedIndex} to ${newIndex}`);
+                const success = this.musicManager.reorderTrack(this.draggedIndex, newIndex);
+                
+                if (success) {
+                    console.log('✅ UI: Track reordered successfully');
+                } else {
+                    console.error('❌ UI: Failed to reorder track');
+                }
             }
             
             this.hideDropIndicator();
@@ -429,6 +436,7 @@ export class UIManager {
                 if (!e.target.classList.contains('playlist-item-btn') && 
                     !e.target.classList.contains('drag-handle')) {
                     const trackIndex = parseInt(item.dataset.index);
+                    console.log(`🎵 UI: Loading track at index ${trackIndex}`);
                     this.musicManager.loadTrack(trackIndex);
                 }
             });
@@ -439,6 +447,7 @@ export class UIManager {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const index = parseInt(btn.dataset.index);
+                console.log(`🎵 UI: Playing track at index ${index}`);
                 this.musicManager.loadTrack(index);
                 this.musicManager.play();
             });
@@ -449,6 +458,7 @@ export class UIManager {
                 e.stopPropagation();
                 const trackId = parseInt(btn.dataset.trackId);
                 if (confirm('Remove this track from playlist?')) {
+                    console.log(`🗑️ UI: Removing track with ID ${trackId}`);
                     this.musicManager.removeTrack(trackId);
                 }
             });

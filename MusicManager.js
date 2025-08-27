@@ -224,6 +224,50 @@ export class MusicManager {
         return true;
     }
 
+    // Reorder tracks in playlist
+    reorderTrack(oldIndex, newIndex) {
+        if (oldIndex < 0 || oldIndex >= this.playlist.length || 
+            newIndex < 0 || newIndex >= this.playlist.length || 
+            oldIndex === newIndex) {
+            console.warn(`❌ Invalid reorder indices: ${oldIndex} -> ${newIndex}`);
+            return false;
+        }
+
+        console.log(`🔄 Reordering track from position ${oldIndex} to ${newIndex}`);
+        
+        // Remove track from old position
+        const [movedTrack] = this.playlist.splice(oldIndex, 1);
+        
+        // Insert track at new position
+        this.playlist.splice(newIndex, 0, movedTrack);
+        
+        // Update current track index if necessary
+        if (this.currentTrackIndex === oldIndex) {
+            // Currently playing track was moved
+            this.currentTrackIndex = newIndex;
+            console.log(`🎵 Updated current track index to ${newIndex}`);
+        } else if (this.currentTrackIndex > oldIndex && this.currentTrackIndex <= newIndex) {
+            // Current track index shifts down
+            this.currentTrackIndex--;
+        } else if (this.currentTrackIndex < oldIndex && this.currentTrackIndex >= newIndex) {
+            // Current track index shifts up
+            this.currentTrackIndex++;
+        }
+        
+        // Notify UI of playlist change
+        if (this.onPlaylistChange) {
+            this.onPlaylistChange(this.playlist);
+        }
+        
+        // Notify of track change if current track moved
+        if (this.onTrackChange && oldIndex === this.currentTrackIndex) {
+            this.onTrackChange(this.getCurrentTrack());
+        }
+        
+        console.log(`✅ Track reordered successfully. Current track index: ${this.currentTrackIndex}`);
+        return true;
+    }
+
     // Track Loading
     async loadTrack(trackIndex) {
         if (trackIndex < 0 || trackIndex >= this.playlist.length) {
