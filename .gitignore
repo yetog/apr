@@ -1,2 +1,20 @@
 node_modules/
 .env
+
+# Local DJ Copilot: no audio, database, or Python build artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+*.sqlite3
+*.db
+*.mp3
+*.wav
+*.flac
+*.m4a
+*.aiff
+*.aif
+*.ogg
+*.stem
+*.stems
