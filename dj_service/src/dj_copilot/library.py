@@ -68,9 +68,7 @@ def _metadata(path: Path) -> dict[str, Any]:
             except ValueError:
                 pass
         result["musical_key"] = _first(tags.get("initialkey") or tags.get("key")) or None
-    except (OSError, ValueError, TypeError):
-        pass
-    return result
+    except Exception:\n        # Corrupt or unsupported audio still indexes by filename.\n        pass\n    return result
 
 
 def scan_directory(folder: Path, database: Path | None = None) -> dict[str, int]:
