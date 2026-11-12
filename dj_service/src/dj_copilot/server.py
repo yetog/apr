@@ -1,10 +1,10 @@
 """MCP entrypoint. The audio index is shared with the APR loopback API."""
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
 from . import __version__
 from .library import get_track_features as lookup, list_tracks as search, track_count
 
-mcp = FastMCP("APR DJ Copilot")
+mcp = MCPServer("APR DJ Copilot")
 
 
 @mcp.tool()
