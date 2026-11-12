@@ -1,6 +1,7 @@
 import { Game } from './game.js';
 import { MusicManager } from './MusicManager.js';
 import { UIManager } from './UIManager.js';
+import { mountDJCopilotPanel } from './DJCopilotClient.js';
 
 // Get the render target div
 const renderDiv = document.getElementById('renderDiv');
@@ -14,6 +15,9 @@ if (!renderDiv) {
     
     // Initialize the UI manager with the music manager
     const uiManager = new UIManager(musicManager);
+
+    // Optional local DJ Copilot panel; never blocks APR audio or gestures.
+    mountDJCopilotPanel().catch(error => console.warn('DJ Copilot unavailable:', error));
     
     // Initialize the game with the render target and music manager
     const game = new Game(renderDiv, musicManager);
